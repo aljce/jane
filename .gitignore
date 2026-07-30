@@ -1,0 +1,9 @@
+/target
+/result
+/result-*
+.direnv/
+
+# Corpus, tokenized shards, tokenizer, checkpoints — all regenerable, all large.
+/data/
+/checkpoints/
+/artifacts/

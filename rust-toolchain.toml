@@ -1,0 +1,12 @@
+[toolchain]
+# Burn 0.20.1 declares an MSRV of 1.89; pinning the current stable.
+channel = "1.91.1"
+components = [
+  "rustc",
+  "cargo",
+  "rust-src",
+  "rustfmt",
+  "clippy",
+  "rust-analyzer",
+]
+profile = "minimal"
