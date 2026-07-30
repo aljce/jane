@@ -9,7 +9,7 @@
 
 use std::path::Path;
 
-use crate::{Result, tokenizer::JaneTokenizer};
+use crate::{Result, tokenizer::Tokenizer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BinarizeStats {
@@ -50,7 +50,7 @@ pub struct BinarizeStats {
 /// - the sidecar records the tokenizer sha256 and vocab_size
 pub fn binarize_text_file(
     _text_file: impl AsRef<Path>,
-    _tokenizer: &JaneTokenizer,
+    _tokenizer: &impl Tokenizer,
     _out_bin: impl AsRef<Path>,
     _doc_sep: Option<&str>,
 ) -> Result<BinarizeStats> {

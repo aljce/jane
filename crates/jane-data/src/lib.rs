@@ -4,7 +4,7 @@
 //!
 //! ```text
 //! DataSource::fetch  ->  raw .txt
-//!   JaneTokenizer::train_from_files  ->  tokenizer.json
+//!   ByteTokenizer::train_from_files  ->  tokenizer.json
 //!     binarize_text_file  ->  train.bin  (flat u16 LE)  +  train.bin.meta.json
 //!       TokenDataset::open  ->  LmBatcher  ->  LmBatch { inputs, targets }
 //! ```
@@ -24,7 +24,7 @@ pub use binarize::{BinarizeStats, binarize_text_file};
 pub use dataset::{TokenDataset, TokenSample};
 pub use meta::{TOKEN_BIN_FORMAT, TokenMeta};
 pub use source::{DataSource, HfTextSource, RawTextSource};
-pub use tokenizer::JaneTokenizer;
+pub use tokenizer::{ByteTokenizer, Tokenizer};
 
 /// Errors across the data pipeline.
 #[derive(Debug, thiserror::Error)]
