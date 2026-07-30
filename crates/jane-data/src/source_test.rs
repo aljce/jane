@@ -96,14 +96,7 @@
 
     /// When sha256 is set and the file on disk has a different digest,
     /// fetch must return an error rather than silently serving the wrong file.
-    ///
-    /// sha256_of_file is in the tokenizer lane (currently todo!()) so this
-    /// test uses #[should_panic] — the todo!() will fire before the checksum
-    /// comparison reaches a pass/fail decision, which confirms the code path
-    /// is exercised. Once the tokenizer lane implements sha256_of_file, this
-    /// test should be changed to assert Err(DataError::Checksum { .. }).
     #[test]
-    #[should_panic]
     fn raw_wrong_sha256_is_error() {
         let dir = TempDir::new().unwrap();
         let cache = dir.path();
@@ -115,10 +108,11 @@
         let src = RawTextSource::new("t", "http://unused.invalid/", "c.txt")
             .with_sha256("0000000000000000000000000000000000000000000000000000000000000000");
 
-        // Will panic inside sha256_of_file (todo!()) — this documents the
-        // intended behaviour and will become a proper Err check once the
-        // tokenizer lane is implemented.
-        let _ = src.fetch(cache);
+        let err = src.fetch(cache).unwrap_err();
+        assert!(
+            matches!(err, DataError::Checksum { .. }),
+            "expected Checksum error, got {err:?}"
+        );
     }
 
     /// Live network test — downloads the real tiny-shakespeare corpus (~1 MB).
