@@ -21,3 +21,4 @@ pub mod rope;
 
 pub use config::{ConfigError, JaneConfig, Preset};
 pub use model::Jane;
+pub use rmsnorm::Norm;
