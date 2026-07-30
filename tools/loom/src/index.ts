@@ -258,6 +258,110 @@ function formatStatus(infos: LaneInfo[]): string {
 }
 
 // ---------------------------------------------------------------------------
+// Flight log updates
+// ---------------------------------------------------------------------------
+
+const VALID_STATUSES = [
+  "queued",
+  "in-flight",
+  "blocked",
+  "awaiting-review",
+  "in-review",
+  "changes-requested",
+  "merged",
+  "abandoned",
+] as const;
+
+type LaneStatus = (typeof VALID_STATUSES)[number];
+
+interface FlightUpdate {
+  lane: string;
+  status?: LaneStatus;
+  agent?: string;
+  model?: string;
+  doing?: string;
+  blocker?: string;
+  log?: string;
+}
+
+function updateFlight(update: FlightUpdate): string {
+  const flightPath = resolve(config.flightFile);
+  if (!fs.existsSync(flightPath)) {
+    throw new Error(`flight file not found: ${config.flightFile}`);
+  }
+
+  const content = fs.readFileSync(flightPath, "utf-8");
+  const lines = content.split("\n");
+
+  let found = false;
+  let inLanes = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.includes("lanes:begin")) { inLanes = true; continue; }
+    if (line.includes("lanes:end")) { inLanes = false; continue; }
+    if (!inLanes) continue;
+    if (line.startsWith("<!--") || line.startsWith("| ---") || line.startsWith("| Lane")) continue;
+
+    const match = line.match(/^\|\s*`([^`]+)`\s*\|/);
+    if (match && match[1].trim() === update.lane) {
+      // Parse existing columns: Lane | Status | Agent | Model | Doing | Blocker |
+      const cols = line.split("|").slice(1, -1); // drop leading/trailing empty
+      if (cols.length < 6) continue;
+
+      const cur = {
+        lane: cols[0].trim(),
+        status: cols[1].trim(),
+        agent: cols[2].trim(),
+        model: cols[3].trim(),
+        doing: cols[4].trim(),
+        blocker: cols[5].trim(),
+      };
+
+      const newStatus = update.status ?? cur.status;
+      const newAgent = update.agent ?? cur.agent;
+      const newModel = update.model ?? cur.model;
+      const newDoing = update.doing ?? cur.doing;
+      const newBlocker = update.blocker ?? cur.blocker;
+
+      lines[i] = `| \`${update.lane}\` | ${newStatus} | ${newAgent} | ${newModel} | ${newDoing} | ${newBlocker} |`;
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    throw new Error(`lane '${update.lane}' not found in flight log`);
+  }
+
+  // Append log entry if provided
+  if (update.log) {
+    const today = new Date().toISOString().slice(0, 10);
+    const logEntry = `- \`${today}\` — ${update.log}`;
+
+    // Find last non-empty line and append
+    let lastNonEmpty = lines.length - 1;
+    while (lastNonEmpty >= 0 && !lines[lastNonEmpty].trim()) lastNonEmpty--;
+    lines.splice(lastNonEmpty + 1, 0, logEntry);
+  }
+
+  fs.writeFileSync(flightPath, lines.join("\n"));
+
+  const summary = [
+    `updated ${update.lane}`,
+    update.status ? `status → ${update.status}` : null,
+    update.agent ? `agent → ${update.agent}` : null,
+    update.model ? `model → ${update.model}` : null,
+    update.blocker ? `blocker → ${update.blocker}` : null,
+    update.log ? `log entry added` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
 // CLI: review
 // ---------------------------------------------------------------------------
 
@@ -448,6 +552,32 @@ async function serveMcp(): Promise<void> {
     },
   );
 
+  server.tool(
+    "update_flight",
+    "Update a lane's status and metadata in the flight log. Use this to record state transitions (e.g. queued → in-flight, in-flight → awaiting-review, awaiting-review → merged). Optionally appends an audit log entry.",
+    {
+      lane: z.string().describe("Lane name (e.g. 'attention')"),
+      status: z
+        .enum(VALID_STATUSES)
+        .optional()
+        .describe("New status for the lane"),
+      agent: z.string().optional().describe("Agent identifier"),
+      model: z.string().optional().describe("Model used (e.g. 'opus', 'sonnet')"),
+      doing: z.string().optional().describe("Short description of current work"),
+      blocker: z.string().optional().describe("Blocker description, or '—' to clear"),
+      log: z.string().optional().describe("Audit log entry to append (date is added automatically)"),
+    },
+    async ({ lane, status, agent, model, doing, blocker, log }) => {
+      try {
+        const summary = updateFlight({ lane, status, agent, model, doing, blocker, log });
+        return { content: [{ type: "text", text: summary }] };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { content: [{ type: "text", text: `error: ${msg}` }], isError: true };
+      }
+    },
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
@@ -477,6 +607,48 @@ switch (cmd) {
     const lane = rest[0];
     if (!lane) { console.error("usage: loom approve <lane> [-r]"); process.exit(1); }
     cliApprove(lane, rest.slice(1));
+    break;
+  }
+
+  case "flight":
+  case "f": {
+    // loom flight <lane> <status> [--model X] [--agent X] [--blocker X] [--log "msg"]
+    const lane = rest[0];
+    const status = rest[1] as LaneStatus | undefined;
+    if (!lane) {
+      console.error("usage: loom flight <lane> [status] [--model M] [--agent A] [--blocker B] [--log MSG]");
+      process.exit(1);
+    }
+    if (status && !VALID_STATUSES.includes(status)) {
+      console.error(`invalid status: ${status}`);
+      console.error(`valid: ${VALID_STATUSES.join(", ")}`);
+      process.exit(1);
+    }
+
+    const flags: Record<string, string> = {};
+    for (let i = 2; i < rest.length; i++) {
+      if (rest[i].startsWith("--") && i + 1 < rest.length) {
+        flags[rest[i].slice(2)] = rest[i + 1];
+        i++;
+      }
+    }
+
+    try {
+      const summary = updateFlight({
+        lane,
+        status,
+        agent: flags.agent,
+        model: flags.model,
+        blocker: flags.blocker,
+        doing: flags.doing,
+        log: flags.log,
+      });
+      console.log(summary);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`error: ${msg}`);
+      process.exit(1);
+    }
     break;
   }
 
