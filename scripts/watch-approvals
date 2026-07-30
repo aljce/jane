@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# watch-approvals — block until a new lane approval appears.
+#
+# Usage:
+#   watch-approvals              # prints lane names as they're approved
+#   watch-approvals --once       # print the first approval and exit
+#
+# Watches agent-orchestrator/approvals/ for file creates/modifies using
+# inotifywait. Each line of output is a lane name (the filename written
+# by `ra`). Meant to be run in the background by the orchestrator agent.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+APPROVALS_DIR="agent-orchestrator/approvals"
+mkdir -p "$APPROVALS_DIR"
+
+usage() {
+  cat <<'HELP'
+watch-approvals — block until a new lane approval appears
+
+Usage:
+  watch-approvals          stream lane names as they're approved
+  watch-approvals --once   print the first approval and exit
+
+Output is one lane name per line, suitable for piping or background
+monitoring by the orchestrator agent.
+
+Requires inotify-tools (provided by the nix shell).
+HELP
+  exit 0
+}
+
+[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
+
+if ! command -v inotifywait &>/dev/null; then
+  # Background tasks (e.g. from the Agent tool) don't inherit the nix shell.
+  # Fall back to nix shell --command so the script works outside direnv.
+  exec nix shell nixpkgs#inotify-tools --command "$0" "$@"
+fi
+
+mode="-m"
+[ "${1:-}" = "--once" ] && mode=""
+
+exec inotifywait $mode -q -e create -e modify -e moved_to --format '%f' "$APPROVALS_DIR"
