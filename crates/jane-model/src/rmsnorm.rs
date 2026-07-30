@@ -11,6 +11,11 @@
 
 use burn::{module::Module, nn::Initializer, prelude::Backend, tensor::Tensor};
 
+/// Normalization layer, generic over tensor rank.
+pub trait Norm<B: Backend, const D: usize> {
+    fn forward(&self, x: Tensor<B, D>) -> Tensor<B, D>;
+}
+
 /// RMS normalization with a learnable gain (no bias).
 ///
 /// The gain parameter `gamma` has shape `[d_model]` and is initialized to ones.
@@ -46,12 +51,18 @@ impl<B: Backend> RmsNorm<B> {
     /// - normalizing a constant vector yields a constant (scaled by gamma)
     /// - the output changes when gamma is modified (proving it's not hardcoded)
     /// - a vector of zeros does not produce NaN (eps prevents it)
-    pub fn forward(&self, x: Tensor<B, 3>) -> Tensor<B, 3> {
+    pub fn forward<const D: usize>(&self, x: Tensor<B, D>) -> Tensor<B, D> {
         // Compute RMS over the last dimension; mean_dim keeps the dim so rms
-        // has shape [batch, seq, 1] and broadcasts naturally against x.
-        let rms = (x.clone().powf_scalar(2.0).mean_dim(2) + self.eps).sqrt();
-        // gamma shape [d_model] → unsqueeze to [1, 1, d_model] for broadcast.
+        // broadcasts naturally against x.
+        let rms = (x.clone().powf_scalar(2.0).mean_dim(D - 1) + self.eps).sqrt();
+        // gamma shape [d_model] → unsqueeze to [1, ..., 1, d_model] for broadcast.
         (x / rms) * self.gamma.val().unsqueeze()
+    }
+}
+
+impl<B: Backend, const D: usize> Norm<B, D> for RmsNorm<B> {
+    fn forward(&self, x: Tensor<B, D>) -> Tensor<B, D> {
+        RmsNorm::forward(self, x)
     }
 }
 
