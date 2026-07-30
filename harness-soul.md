@@ -84,10 +84,28 @@ Verified by trying to break it (2026-07-29): from a linked worktree,
 `fatal: ref updates aborted by hook`, while `git branch agent/legit HEAD`
 succeeds.
 
-**The one real hole:** a subagent spawned *without* worktree isolation runs in the
-primary worktree and inherits orchestrator privileges. Closing it is the
-orchestrator's discipline, not the hook's: **always spawn with
-`isolation: "worktree"`.**
+### The remote
+
+A remote (`origin`, `git@github.com:aljce/jane.git`) changes the picture, because
+`reference-transaction` only guards *local* refs. `git push origin HEAD:master`
+never moves a local branch — it changes the remote and only then updates
+`refs/remotes/origin/master`, long after the damage. `.githooks/pre-push` covers
+that case with the same primary-vs-linked test.
+
+But be clear about what that buys: **`git push --no-verify` skips `pre-push`.** A
+local hook cannot be the real authority over a shared branch. The authoritative
+fix is server-side — **GitHub branch protection on `master`, requiring a pull
+request** — which no client-side flag can bypass. Until that is configured,
+`pre-push` catches honest mistakes and nothing more.
+
+### The two real holes
+
+1. A subagent spawned *without* worktree isolation runs in the primary worktree
+   and inherits orchestrator privileges. No hook can see the difference, because
+   there isn't one. Closing it is discipline: **always spawn with
+   `isolation: "worktree"`.**
+2. `master` on the remote is only as protected as GitHub says it is. Local hooks
+   are advisory once a network is involved.
 
 ### Law 2 — Only the orchestrator spawns subagents
 

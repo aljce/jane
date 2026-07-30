@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Stops a subagent pushing straight to a protected branch on the remote.
+#
+# Why this exists separately from reference-transaction: that hook guards *local*
+# ref updates. `git push origin HEAD:master` never moves a local branch — it
+# changes the remote, and only afterwards updates refs/remotes/origin/master,
+# by which point it is too late. So adding a remote reopened the hole Law 1
+# closes locally, and this is the patch.
+#
+# Honest limitation: `git push --no-verify` skips this. A local hook cannot be the
+# real authority over a shared branch. The authoritative fix is server-side —
+# GitHub branch protection on master requiring a PR. Treat this hook as the thing
+# that catches an honest mistake, not as a wall.
+#
+# stdin: <local-ref> SP <local-sha> SP <remote-ref> SP <remote-sha>
+
+set -uo pipefail
+
+PROTECTED='^refs/heads/(master|main)$'
+
+git_dir="$(git rev-parse --absolute-git-dir 2>/dev/null)" || exit 0
+common_raw="$(git rev-parse --git-common-dir 2>/dev/null)" || exit 0
+common_dir="$(cd "$common_raw" 2>/dev/null && pwd)" || exit 0
+
+# Primary worktree == the orchestrator. Let it push.
+[ "$git_dir" = "$common_dir" ] && exit 0
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ -n "${remote_ref:-}" ] || continue
+  if [[ "$remote_ref" =~ $PROTECTED ]]; then
+    cat >&2 <<EOF
+
+BLOCKED: refusing to push to '$remote_ref' from a linked worktree.
+
+  Only the orchestrator publishes to a protected branch.
+  You are a subagent in $(basename "$git_dir").
+
+  Push your own lane if you need it off this machine:
+      git push -u origin agent/<your-lane>
+
+  Then report completion. The orchestrator reviews and merges.
+  See harness-soul.md §2 (Law 1).
+EOF
+    exit 1
+  fi
+done
+
+exit 0
