@@ -72,6 +72,18 @@ The hook fails *open* on internal error. A bug in it would otherwise brick every
 git operation in the repo, which is worse than a missed check, and Laws 2–4 stand
 behind it.
 
+Git contributes a second, independent layer for free: a branch checked out in one
+worktree **cannot** be force-moved from another (`fatal: cannot force update the
+branch 'master' used by worktree at …`). So while the orchestrator sits on
+`master`, that branch is protected by git itself even before the hook runs. The
+hook is what covers the rest — `main`, or `master` when the orchestrator has
+stepped off it.
+
+Verified by trying to break it (2026-07-29): from a linked worktree,
+`git branch main HEAD` and `git branch feature/x HEAD` are both refused with
+`fatal: ref updates aborted by hook`, while `git branch agent/legit HEAD`
+succeeds.
+
 **The one real hole:** a subagent spawned *without* worktree isolation runs in the
 primary worktree and inherits orchestrator privileges. Closing it is the
 orchestrator's discipline, not the hook's: **always spawn with
@@ -251,6 +263,13 @@ on each other rather than run concurrently. Isolation comes from separate target
 dirs; reuse comes from a shared `sccache`, which is also why
 `.cargo/config.toml` sets `incremental = false` — sccache cannot cache
 incremental compilation, and would silently miss on every one of our crates.
+
+Measured on a fresh worktree with an empty `target/` (2026-07-29): **59s** to
+build the whole workspace, at roughly a **50% sccache hit rate** (205 hits across
+405 compile requests). Not free, but a small fraction of a cold build of Burn's
+dependency tree. If `make sccache-stats` ever shows a hit rate near zero,
+something has broken the cache key — check that `incremental` is still off and
+that `RUSTC_WRAPPER` is set inside the shell.
 
 | Artifact | Purpose |
 | --- | --- |

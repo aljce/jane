@@ -66,6 +66,12 @@ esac
 staged="$(git diff --cached --name-only --diff-filter=ACMRD)"
 [ -n "$staged" ] || exit 0
 
+# Disable pathname expansion for the rest of the hook. Word-splitting $globs with
+# it on would expand a glob like `*` against the working directory, so the
+# orchestrator's `*` became a listing of the repo root instead of a
+# match-everything pattern. `[[ str == pat ]]` matching is unaffected by set -f.
+set -f
+
 violations=()
 while IFS= read -r file; do
   [ -n "$file" ] || continue
