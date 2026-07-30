@@ -69,7 +69,10 @@ fn check<B: Backend>(label: &str, device: &B::Device, size: usize) -> Result<()>
         .context("failed to read the result back from the device")?;
     let elapsed = started.elapsed();
 
-    anyhow::ensure!(mean.is_finite(), "matmul produced a non-finite mean: {mean}");
+    anyhow::ensure!(
+        mean.is_finite(),
+        "matmul produced a non-finite mean: {mean}"
+    );
     anyhow::ensure!(
         mean > 0.0 && mean < size as f64,
         "matmul mean {mean} is outside the plausible range (0, {size}) — \
@@ -87,7 +90,10 @@ fn check<B: Backend>(label: &str, device: &B::Device, size: usize) -> Result<()>
     let flops = 2.0 * (size as f64).powi(3);
     println!("matmul  : {size}x{size} in {elapsed:.2?}");
     println!("mean    : {mean:.4} (expected ~{expected:.4})");
-    println!("throughput: {:.1} GFLOP/s", flops / elapsed.as_secs_f64() / 1e9);
+    println!(
+        "throughput: {:.1} GFLOP/s",
+        flops / elapsed.as_secs_f64() / 1e9
+    );
     println!("\nOK — {label} allocates, computes and reads back correctly.");
 
     Ok(())

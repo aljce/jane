@@ -102,7 +102,7 @@ impl TokenMeta {
     /// Check the sidecar against the actual `.bin` size.
     pub fn check_bin_len(&self, bin: impl AsRef<Path>, len_bytes: u64) -> Result<()> {
         let path = bin.as_ref().display().to_string();
-        if len_bytes % 2 != 0 {
+        if !len_bytes.is_multiple_of(2) {
             return Err(DataError::CorruptTokenFile {
                 path,
                 reason: format!("{len_bytes} bytes is not a whole number of u16 tokens"),
@@ -171,7 +171,10 @@ mod tests {
     fn check_bin_len_rejects_odd_byte_count() {
         let meta = TokenMeta::new(10, 256, "x", "s", 0);
         let err = meta.check_bin_len("t.bin", 21).unwrap_err();
-        assert!(matches!(err, DataError::CorruptTokenFile { .. }), "got {err:?}");
+        assert!(
+            matches!(err, DataError::CorruptTokenFile { .. }),
+            "got {err:?}"
+        );
     }
 
     #[test]

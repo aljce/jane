@@ -41,7 +41,11 @@ impl TokenDataset {
     /// - a `.bin` of odd byte length is rejected
     /// - a sidecar whose `token_count` disagrees with the file is rejected
     /// - a missing sidecar is rejected with a path in the message
-    pub fn open(_bin: impl AsRef<std::path::Path>, _seq_len: usize, _stride: usize) -> Result<Self> {
+    pub fn open(
+        _bin: impl AsRef<std::path::Path>,
+        _seq_len: usize,
+        _stride: usize,
+    ) -> Result<Self> {
         todo!("TokenDataset::open")
     }
 

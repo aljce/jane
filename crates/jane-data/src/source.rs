@@ -37,7 +37,11 @@ pub struct RawTextSource {
 }
 
 impl RawTextSource {
-    pub fn new(name: impl Into<String>, url: impl Into<String>, filename: impl Into<String>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        url: impl Into<String>,
+        filename: impl Into<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             url: url.into(),
