@@ -1,0 +1,11 @@
+# 13.77M params (tied). The primary target.
+# See ROADMAP §3.2 and JaneConfig::preset(Preset::Jane14m).
+vocab_size = 8192
+d_model = 384
+n_layers = 6
+n_heads = 6
+seq_len = 512
+dropout = 0.0
+rope_theta = 10000.0
+norm_eps = 1e-5
+tie_embeddings = true

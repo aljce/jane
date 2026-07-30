@@ -1,0 +1,11 @@
+# 144.3M params (tied). Rung 4, sized to fit 12 GB with AdamW state.
+# See ROADMAP §3.2 and JaneConfig::preset(Preset::Jane150m).
+vocab_size = 32768
+d_model = 896
+n_layers = 12
+n_heads = 14
+seq_len = 1024
+dropout = 0.0
+rope_theta = 10000.0
+norm_eps = 1e-5
+tie_embeddings = true
