@@ -39,14 +39,25 @@ logged="$(awk -F'|' '/lanes:begin/{i=1;next} /lanes:end/{i=0} i && /^\| *`/ { gs
 
 # Live git state.
 branches="$(git branch --list 'agent/*' --format='%(refname:short)' | sed 's|^agent/||' | sort -u)"
-# "Merged" must mean "contributed something that is now on master". A freshly
-# created lane still points at master's tip, so `git branch --merged` calls it
-# merged when in truth it has not started — excluding tip==master is what makes
-# the distinction. Without this every new lane reports as already merged.
-master_tip="$(git rev-parse master 2>/dev/null)"
-merged="$(git branch --merged master --list 'agent/*' \
-  --format='%(refname:short) %(objectname)' |
-  awk -v m="$master_tip" '$2 != m { sub("^agent/", "", $1); print $1 }' | sort -u)"
+# Ancestry is the wrong question. `git branch --merged` calls a lane merged
+# whenever its tip is an ancestor of master — which is true both for a lane whose
+# work landed AND for one that never committed anything and has simply fallen
+# behind. Excluding tip==master patched the freshly-created case but broke again
+# the moment master moved ahead on its own.
+#
+# What is always computable and always means something is the count of commits a
+# lane holds that master does not:
+#   ahead == 0  ->  nothing outstanding (either merged, or never started)
+#   ahead  > 0  ->  unmerged work sitting on that branch
+# The status checks below compare that against what the log claims.
+ahead_of_master() {
+  git rev-list --count "master..refs/heads/agent/$1" 2>/dev/null || echo 0
+}
+unmerged=""
+for b in $branches; do
+  [ "$(ahead_of_master "$b")" -gt 0 ] && unmerged="$unmerged$b"$'\n'
+done
+unmerged="$(printf '%s' "$unmerged" | sed '/^$/d' | sort -u)"
 worktrees="$(git worktree list --porcelain | awk '/^branch refs\/heads\/agent\//{sub("branch refs/heads/agent/","");print}' | sort -u)"
 
 problems=0
@@ -75,19 +86,25 @@ while IFS='|' read -r _ lane status _; do
   [ -n "$lane" ] || continue
   case "$status" in
     merged)
-      grep -qx "$lane" <<<"$merged" ||
-        warn "$red" "'$lane' is logged merged but agent/$lane is not merged into master"
+      grep -qx "$lane" <<<"$unmerged" &&
+        warn "$red" "'$lane' is logged merged but still holds commits master does not"
       ;;
-    in-flight | blocked | awaiting-review | in-review | changes-requested)
+    awaiting-review | in-review | changes-requested)
+      # These all assert the agent finished and committed. Zero commits means
+      # either the log is ahead of reality or the agent reported work it never
+      # committed — both worth stopping for.
+      grep -qx "$lane" <<<"$unmerged" ||
+        warn "$red" "'$lane' is '$status' but agent/$lane has no commits of its own"
+      ;;
+    in-flight | blocked)
       grep -qx "$lane" <<<"$branches" ||
         warn "$yellow" "'$lane' is '$status' but branch agent/$lane does not exist yet"
-      if grep -qx "$lane" <<<"$merged"; then
-        warn "$yellow" "'$lane' is '$status' but agent/$lane is already merged — update the log"
-      fi
       ;;
     queued)
-      grep -qx "$lane" <<<"$branches" &&
-        warn "$yellow" "'$lane' is 'queued' but branch agent/$lane already exists"
+      # A worktree may legitimately be pre-created before a lane starts, so the
+      # branch existing proves nothing. Commits on it do.
+      grep -qx "$lane" <<<"$unmerged" &&
+        warn "$yellow" "'$lane' is 'queued' but agent/$lane already has commits"
       ;;
   esac
 done < <(awk -F'|' '/lanes:begin/{i=1;next} /lanes:end/{i=0} i && /^\| *`/ {print "|" $2 "|" $3 "|"}' "$flight")
@@ -95,7 +112,7 @@ done < <(awk -F'|' '/lanes:begin/{i=1;next} /lanes:end/{i=0} i && /^\| *`/ {prin
 echo "${bold}Live git${reset}"
 printf '  %-12s %s\n' "branches:"  "${branches//$'\n'/ }"
 printf '  %-12s %s\n' "worktrees:" "${worktrees:+${worktrees//$'\n'/ }}"
-printf '  %-12s %s\n' "merged:"    "${merged//$'\n'/ }"
+printf "  %-12s %s\n" "unmerged:"  "${unmerged:+${unmerged//$'\n'/ }}"
 echo
 
 if [ "$problems" -eq 0 ]; then
