@@ -10,3 +10,9 @@
 
 # Human review approvals — local-only state, not committed.
 agent-orchestrator/approvals/
+agent-orchestrator/reviews/
+
+# MCP server build artifacts (source is committed, build output is not).
+tools/loom/node_modules/
+tools/loom/dist/
+tools/loom/flake.lock

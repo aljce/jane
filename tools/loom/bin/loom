@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# loom — multi-agent orchestration CLI
+exec node "$(dirname "$(readlink -f "$0")")/../dist/index.js" "$@"

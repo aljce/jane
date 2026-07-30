@@ -149,6 +149,9 @@
           export SCCACHE_DIR="''${SCCACHE_DIR:-$HOME/.cache/sccache/jane}"
           mkdir -p "$SCCACHE_DIR"
 
+          # loom CLI: status, review, approve (and lr/la aliases)
+          export PATH="$(git rev-parse --show-toplevel)/tools/loom/bin:$PATH"
+
 
           echo "jane — transformer from scratch (Burn 0.20.1)"
           echo "  rustc:  $(rustc --version)"

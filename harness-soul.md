@@ -243,12 +243,12 @@ orchestrator-owned file, not a conversation.**
 Every new or resumed orchestrator session must do two things before entering the
 loop:
 
-1. **`make status`** — reconcile the flight log against live git.
-2. **Launch the approval watcher.** Run `scripts/watch-approvals` in the
-   background. It uses `inotifywait` to monitor `agent-orchestrator/approvals/`
-   and prints lane names as they are approved. Background tasks do not survive
-   context compaction or session restarts, so this must be re-launched at the top
-   of every session.
+1. **`mcp__loom__status`** — check the board (always show the result to the user).
+2. **Spawn an approval listener.** Launch a background `general-purpose` agent
+   that calls `mcp__loom__wait_for_approval`. When the user runs `ra <lane>`,
+   the MCP tool returns, the agent completes, and the orchestrator gets a
+   task-notification with zero latency. Re-spawn after each notification to
+   catch the next approval.
 
 ```
   design contracts        (orchestrator, alone, before anything else)
@@ -266,7 +266,7 @@ loop:
         |                  findings -> SendMessage back to the warm implementer
         |                        |
   human approval          (>20 new lines: human runs `rv <lane>`, then `ra <lane>`)
-        |                  watcher notifies orchestrator; SHA must match branch HEAD
+        |                  loom MCP notifies via background agent; SHA must match branch HEAD
         |
   merge                   (orchestrator only; lanes are disjoint so this is mechanical)
         |
@@ -333,8 +333,9 @@ rv <lane>            # review a lane's diff against master (excludes tests; --te
 rv <lane> --stat     # diffstat only
 ra <lane>            # approve a lane for merge (writes SHA to approvals/)
 ra <lane> -r         # revoke a previous approval
-scripts/watch-approvals          # stream approvals via inotifywait (run in background)
-scripts/watch-approvals --once   # print the first approval and exit
+mcp__loom__status                # full board (always show result to user)
+mcp__loom__check_approvals       # approval state for all/one lane
+mcp__loom__wait_for_approval     # blocking — run in a background agent for zero-latency notification
 ```
 
 **Why each worktree keeps its own `target/`.** Cargo takes an exclusive lock on a

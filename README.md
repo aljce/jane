@@ -20,9 +20,12 @@ make smoke-cuda      # verify the GPU path works
 `make` on its own lists every target. Everything runs inside the Nix dev shell via
 `scripts/x`, so `cargo` is never invoked bare.
 
-Status: Phase 0 complete — workspace, harness, and a verified CUDA backend
-(9.8 TFLOP/s fp32 on an RTX 5070 Ti, sm_120). Phase 1 contracts are committed as
-`todo!()` stubs awaiting their lanes.
+Status: **Phase 1 complete** (114 tests). Model config with four presets
+(1M→150M params), byte-level BPE tokenizer with binarization, mmap dataset +
+batching, corpus fetcher (tiny-shakespeare / tinystories-v2), and training config
+with warmup→cosine schedule — all merged. **Phase 2 in progress**: Wave 1
+(RMSNorm, RoPE, SwiGLU FFN) implementing in parallel; Wave 2 (causal
+self-attention, full model) follows.
 
 ## The agent harness
 
@@ -53,7 +56,6 @@ tree compiles once. This is why `.cargo/config.toml` sets `incremental = false`.
 
 | Path | What |
 | --- | --- |
-| [agent-orchestrator/RESUME.md](agent-orchestrator/RESUME.md) | **Start here in a new session** — current board and next actions |
 | [harness-soul.md](harness-soul.md) | The orchestrator's role and the four laws |
 | [agent-orchestrator/ownership](agent-orchestrator/ownership) | Lane → owned path globs. Enforced. |
 | [agent-orchestrator/flight.md](agent-orchestrator/flight.md) | What's in flight, agent ids, pipeline stage (`make status`) |
@@ -66,9 +68,9 @@ tree compiles once. This is why `.cargo/config.toml` sets `incremental = false`.
 ## Layout
 
 ```
-crates/jane-model/   config now; RoPE, attention, blocks in Phase 2
-crates/jane-data/    corpus fetch, BPE, binarize, mmap dataset
-crates/jane-train/   training config now; learner loop in Phase 3
+crates/jane-model/   config, RMSNorm, RoPE, SwiGLU FFN, attention, blocks
+crates/jane-data/    corpus fetch, BPE tokenizer, binarize, mmap dataset + batcher
+crates/jane-train/   training config (warmup→cosine LR); learner loop in Phase 3
 crates/jane-cli/     jane smoke|config|prepare|tokenize
 configs/             jane-{1m,14m,60m,150m}.toml
 ```

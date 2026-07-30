@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "loom": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["tools/loom/dist/index.js"]
+    }
+  }
+}
