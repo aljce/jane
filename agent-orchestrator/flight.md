@@ -41,9 +41,9 @@ Keep the column order.
 | Lane | Status | Agent | Model | Doing | Blocker |
 | --- | --- | --- | --- | --- | --- |
 | `model-config` | merged | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
-| `tokenizer` | in-flight | — | opus | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
-| `dataset` | in-flight | — | opus | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
-| `sources` | in-flight | — | opus | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
+| `tokenizer` | merged | — | opus | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
+| `dataset` | merged | — | opus | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
+| `sources` | merged | — | opus | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
 | `train-config` | merged | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
 <!-- lanes:end -->
 
@@ -93,3 +93,8 @@ for "why is master like this".
   isolation (opus). Dataset and sources worktrees rebased onto master and
   partial work preserved. Human review gate added to Law 3: merges >20 lines
   require human approval on the diff.
+- `2026-07-29` — All Phase 1 lanes reviewed, approved, and merged. Cross-lane
+  fix: source test updated now that `sha256_of_file` is no longer `todo!()`.
+  `make gate` green (114 tests). CLI subcommands (`config`, `prepare`,
+  `tokenize`) wired up. `RESUME.md` removed (superseded by `make status` +
+  flight log). Phase 2 planning started.
