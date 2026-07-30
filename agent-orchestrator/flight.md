@@ -3,7 +3,7 @@
 Which lanes are in the air, who is flying them, and where each one is in the
 impl → review → merge pipeline.
 
-**Orchestrator-owned.** Agents cannot edit this (`.jane/ownership`); they report
+**Orchestrator-owned.** Agents cannot edit this (`agent-orchestrator/ownership`); they report
 and the orchestrator records. Kept as a file rather than in the orchestrator's
 head for three reasons:
 
@@ -56,6 +56,6 @@ Append-only. One line per state transition; newest last. This is the audit trail
 for "why is master like this".
 
 - `2026-07-29` — Phase 0 merged. Contracts committed at `320933d`, `make gate`
-  green. Five lanes declared in `.jane/ownership`. Nothing spawned yet.
+  green. Five lanes declared in `agent-orchestrator/ownership`. Nothing spawned yet.
 - `2026-07-29` — `train-config` split out of `sources` (`5d8caf4`); the two were
   bundled to balance size, which is not a reason.

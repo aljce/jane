@@ -141,7 +141,7 @@ respawn) or fixes them directly if they touch orchestrator-owned surface.
 
 ### Law 4 — Every file has exactly one owner
 
-`.jane/ownership` maps each branch to the path globs it may modify.
+`agent-orchestrator/ownership` maps each branch to the path globs it may modify.
 
 **Enforced by `.githooks/pre-commit`**, which rejects a commit that stages a file
 outside its lane. Because no two lanes share a path, their branches cannot
@@ -250,7 +250,8 @@ orchestrator-owned file, not a conversation.**
   make gate               on the merged whole — green lanes can still sum to red
 ```
 
-**Record every transition in `.jane/flight.md`** as it happens — `make status`
+**Record every transition in `agent-orchestrator/flight.md`** as it happens —
+`make status`
 reconciles it against live git and complains about drift.
 
 This is not bookkeeping for its own sake. The orchestrator's context is not
@@ -305,8 +306,8 @@ that `RUSTC_WRAPPER` is set inside the shell.
 
 | Artifact | Purpose |
 | --- | --- |
-| `.jane/ownership` | Lane → path globs. Enforced. |
-| `.jane/flight.md` | What is in the air, agent ids, pipeline stage. `make status`. |
+| `agent-orchestrator/ownership` | Lane → path globs. Enforced. |
+| `agent-orchestrator/flight.md` | What is in the air, agent ids, pipeline stage. `make status`. |
 | `.githooks/reference-transaction` | Protected branches. Un-bypassable. |
 | `.githooks/pre-commit` | Ownership. Skippable with `--no-verify`. |
 | `.claude/agents/rust-impl.md` | Implementer. No `Agent` tool. |

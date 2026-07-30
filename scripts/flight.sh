@@ -8,8 +8,8 @@ set -uo pipefail
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-flight=".jane/flight.md"
-ownership=".jane/ownership"
+flight="agent-orchestrator/flight.md"
+ownership="agent-orchestrator/ownership"
 
 bold=$'\033[1m'; dim=$'\033[2m'; red=$'\033[31m'; yellow=$'\033[33m'
 green=$'\033[32m'; reset=$'\033[0m'

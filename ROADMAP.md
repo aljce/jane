@@ -437,7 +437,7 @@ jane/
 Developer-experience requests, most from subagents hitting friction mid-lane.
 
 Agents cannot edit this file — `Makefile`, `scripts/` and `ROADMAP.md` are all
-orchestrator-owned (`.jane/ownership`). That is deliberate: four agents each
+orchestrator-owned (`agent-orchestrator/ownership`). That is deliberate: four agents each
 "just adding a quick target" is how a build system rots. Instead an agent reports
 the friction in its final summary and the orchestrator transcribes it here, so
 requests are visible, deduplicated, and decided once.

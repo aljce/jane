@@ -32,4 +32,4 @@ for h in .githooks/*; do
 done
 echo
 echo "reference-transaction is the un-bypassable gate: --no-verify does not skip it."
-echo "pre-commit enforces .jane/ownership and IS skippable with --no-verify."
+echo "pre-commit enforces agent-orchestrator/ownership; skippable with --no-verify."

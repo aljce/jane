@@ -46,7 +46,7 @@ gate: fmt-check clippy test ## Everything a lane must pass before review
 	@echo "gate: PASS"
 
 # ------------------------------------------------------------------ lane loops
-# One target per ownership lane (.jane/ownership), for a tight iteration loop
+# One target per ownership lane (agent-orchestrator/ownership), for a tight
 # that doesn't wait on unrelated crates.
 
 .PHONY: t-model

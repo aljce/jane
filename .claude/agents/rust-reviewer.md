@@ -42,7 +42,8 @@ intent — it reads the diff as what it meant. You read it as what it says.
   truncation (`as u16` on an unchecked value), boundary conditions, empty input,
   reads past the end. For each, give **concrete inputs and the wrong output** —
   a defect you cannot demonstrate is a hypothesis.
-- **Ownership violations.** Files touched outside `.jane/ownership` for this branch.
+- **Ownership violations.** Files touched outside this branch’s entry in
+  `agent-orchestrator/ownership`.
 - **Silent failure.** Errors swallowed, `unwrap()` on fallible IO, a mismatch
   logged instead of returned.
 - **Whole-file reads or accumulation where the contract requires streaming.** This

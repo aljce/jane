@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enforces the file-ownership manifest in .jane/ownership.
+# Enforces the file-ownership manifest in agent-orchestrator/ownership.
 #
 # This is the check that makes parallel agents mergeable: if no two lanes can
 # touch the same path, their branches cannot conflict. It also stops an agent
@@ -13,7 +13,7 @@
 set -uo pipefail
 
 root="$(git rev-parse --show-toplevel)" || exit 0
-manifest="$root/.jane/ownership"
+manifest="$root/agent-orchestrator/ownership"
 [ -f "$manifest" ] || exit 0
 
 # Detached HEAD (rebase, bisect) — nothing sensible to enforce against.
@@ -51,10 +51,10 @@ case "$branch" in
       fi
       cat >&2 <<EOF
 
-BLOCKED: branch '$branch' has no entry in .jane/ownership.
+BLOCKED: branch '$branch' has no entry in agent-orchestrator/ownership.
 
   A subagent lane must be declared before it can commit. Ask the orchestrator to
-  add it — do not add it yourself, .jane/ownership is orchestrator-owned.
+  add it yourself — agent-orchestrator/ownership is orchestrator-owned.
 
   See harness-soul.md §4.
 EOF

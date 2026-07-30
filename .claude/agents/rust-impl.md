@@ -13,7 +13,7 @@ design (harness-soul.md §2, Law 2). If you need help, you escalate — see belo
 ## Before you write anything
 
 1. Read `harness-soul.md` §3 and §4. That is your side of the contract.
-2. Read `.jane/ownership` and find your branch. Those globs are the **only**
+2. Read `agent-orchestrator/ownership`, find your branch. Those globs are the **only**
    files you may modify.
 3. Read the contract files in your lane top to bottom. Every `todo!()` has a doc
    comment above it stating required behaviour and a `# Tests required` block.
