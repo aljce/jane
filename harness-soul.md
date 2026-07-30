@@ -238,6 +238,18 @@ orchestrator-owned file, not a conversation.**
 
 ## 6. The loop
 
+### Session startup
+
+Every new or resumed orchestrator session must do two things before entering the
+loop:
+
+1. **`make status`** — reconcile the flight log against live git.
+2. **Launch the approval watcher.** Run `scripts/watch-approvals` in the
+   background. It uses `inotifywait` to monitor `agent-orchestrator/approvals/`
+   and prints lane names as they are approved. Background tasks do not survive
+   context compaction or session restarts, so this must be re-launched at the top
+   of every session.
+
 ```
   design contracts        (orchestrator, alone, before anything else)
         |
@@ -253,6 +265,9 @@ orchestrator-owned file, not a conversation.**
         |                        |
         |                  findings -> SendMessage back to the warm implementer
         |                        |
+  human approval          (>20 new lines: human runs `rv <lane>`, then `ra <lane>`)
+        |                  watcher notifies orchestrator; SHA must match branch HEAD
+        |
   merge                   (orchestrator only; lanes are disjoint so this is mechanical)
         |
   integrate               (orchestrator: the cross-lane code, e.g. jane-cli)
@@ -313,6 +328,13 @@ scripts/agent-worktree.sh create <lane>   # manual worktree (Agent isolation doe
 scripts/agent-worktree.sh list
 scripts/agent-worktree.sh remove <lane>
 scripts/x <cmd>      # run anything inside the dev shell
+
+rv <lane>            # review a lane's diff against master (excludes tests; --tests to include)
+rv <lane> --stat     # diffstat only
+ra <lane>            # approve a lane for merge (writes SHA to approvals/)
+ra <lane> -r         # revoke a previous approval
+scripts/watch-approvals          # stream approvals via inotifywait (run in background)
+scripts/watch-approvals --once   # print the first approval and exit
 ```
 
 **Why each worktree keeps its own `target/`.** Cargo takes an exclusive lock on a
