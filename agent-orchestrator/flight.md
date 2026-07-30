@@ -40,11 +40,11 @@ Keep the column order.
 <!-- lanes:begin -->
 | Lane | Status | Agent | Model | Doing | Blocker |
 | --- | --- | --- | --- | --- | --- |
-| `model-config` | in-flight | session | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
-| `tokenizer` | in-flight | session | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
-| `dataset` | in-flight | session | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
-| `sources` | in-flight | session | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
-| `train-config` | in-flight | session | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
+| `model-config` | awaiting-review | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
+| `tokenizer` | queued | — | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
+| `dataset` | blocked | — | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | STOPPED by user; uncommitted work in worktree |
+| `sources` | blocked | — | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | STOPPED by user; uncommitted work in worktree |
+| `train-config` | awaiting-review | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
 <!-- lanes:end -->
 
 Model choice is per-lane on purpose: raise it for a lane whose difficulty turns
@@ -68,3 +68,19 @@ for "why is master like this".
   `scripts/agent-worktree.sh` instead, which keeps Laws 1, 3 and 4 fully enforced
   — the agents really are in linked worktrees on `agent/*` branches. A Claude Code
   restart restores both features for later waves.
+- `2026-07-29` — **All agents stopped on user command.** Surviving state:
+  `model-config` committed `5da3b02` (27 tests, gate green) and `train-config`
+  committed `da6dc86` (26 tests, gate green) — both complete, both awaiting the
+  review Law 3 requires. `dataset` and `sources` were killed mid-work with
+  uncommitted edits left in their worktrees (`batcher.rs` + `dataset.rs`, and
+  `source.rs`); nothing is lost, but nothing is committed either. `tokenizer` was
+  still reading its contract and has no edits. The `train-config` reviewer was
+  also stopped before reporting, so no lane has been reviewed and nothing is
+  merged.
+- `2026-07-29` — Orchestrator ruling on a contract defect `train-config` found and
+  I accept: the `lr_at` doc comment demanded the rate stay within `[min_lr, lr]`
+  at every step, which is impossible across warmup for the default recipe
+  (`lr_at(0)` = 3e-4/500 = 6e-7, well under `min_lr` = 3e-5). `min_lr` is the floor
+  of the *cosine decay*, not a global floor, and linear warmup is meant to start
+  near zero. The contract wording was wrong, not the implementation. Needs fixing
+  in the doc comment before Phase 3 builds the real scheduler against it.
