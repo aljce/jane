@@ -25,7 +25,6 @@ agent/tokenizer = crates/jane-data/src/tokenizer.rs crates/jane-data/src/binariz
 
 agent/dataset = crates/jane-data/src/dataset.rs crates/jane-data/src/batcher.rs
 
-agent/renametest = crates/jane-data/src/source.rs
 agent/sources = crates/jane-data/src/source.rs
 
 # Split out from agent/sources: training hyperparameters have nothing to do with
