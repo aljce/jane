@@ -40,11 +40,11 @@ Keep the column order.
 <!-- lanes:begin -->
 | Lane | Status | Agent | Model | Doing | Blocker |
 | --- | --- | --- | --- | --- | --- |
-| `model-config` | awaiting-review | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
+| `model-config` | merged | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
 | `tokenizer` | queued | — | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
 | `dataset` | blocked | — | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | STOPPED by user; uncommitted work in worktree |
 | `sources` | blocked | — | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | STOPPED by user; uncommitted work in worktree |
-| `train-config` | awaiting-review | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
+| `train-config` | merged | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
 <!-- lanes:end -->
 
 Model choice is per-lane on purpose: raise it for a lane whose difficulty turns
@@ -84,3 +84,8 @@ for "why is master like this".
   of the *cosine decay*, not a global floor, and linear warmup is meant to start
   near zero. The contract wording was wrong, not the implementation. Needs fixing
   in the doc comment before Phase 3 builds the real scheduler against it.
+- `2026-07-29` — `model-config` and `train-config` reviewed by fresh
+  `rust-reviewer` agents (Law 3). Both clean — no blockers, no warnings. Merged
+  to master and `lr_at` doc comment fixed in the same commit. `make gate` green
+  on the merged whole (59 tests). Hook updated to allow `worktree-agent-*`
+  branches so Agent tool worktree isolation works.
