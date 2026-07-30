@@ -45,7 +45,19 @@ impl<B: Backend> Ffn<B> {
     /// - a zero input produces a zero output (SiLU(0) = 0, so gate output is 0)
     /// - parameter count is `3 * d_model * d_ff` (no biases)
     pub fn new(d_model: usize, d_ff: usize, device: &B::Device) -> Self {
-        todo!()
+        // Bias is disabled: the SwiGLU paper and the contract both require
+        // bias-free projections. Burn's LinearConfig defaults to bias=true,
+        // so we must opt out explicitly.
+        let gate = LinearConfig::new(d_model, d_ff)
+            .with_bias(false)
+            .init(device);
+        let up = LinearConfig::new(d_model, d_ff)
+            .with_bias(false)
+            .init(device);
+        let down = LinearConfig::new(d_ff, d_model)
+            .with_bias(false)
+            .init(device);
+        Self { gate, up, down }
     }
 
     /// `down(SiLU(gate(x)) * up(x))`
@@ -58,7 +70,11 @@ impl<B: Backend> Ffn<B> {
     ///   weights, verify the output matches the formula
     /// - output changes when weights change (not a constant function)
     pub fn forward(&self, x: Tensor<B, 3>) -> Tensor<B, 3> {
-        todo!()
+        // SwiGLU: gate branch is activated with SiLU, then element-wise
+        // multiplied with the un-activated up branch before projecting back.
+        let gate_out = burn::tensor::activation::silu(self.gate.forward(x.clone()));
+        let up_out = self.up.forward(x);
+        self.down.forward(gate_out * up_out)
     }
 }
 
