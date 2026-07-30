@@ -18,7 +18,26 @@ OWNERSHIP="agent-orchestrator/ownership"
 
 die() { echo "error: $*" >&2; exit 1; }
 
-[ "${1:-}" ] || die "usage: rv <lane> [--tests|--stat|--files|git-diff flags...]"
+usage() {
+  cat <<'HELP'
+rv — review a lane's diff against master
+
+Usage:
+  rv <lane>          diff excluding _test.rs files
+  rv <lane> --tests  diff including _test.rs files
+  rv <lane> --stat   stat summary only
+  rv <lane> --files  list changed files only
+
+Examples:
+  rv dataset         show impl-only diff for the dataset lane
+  rv tokenizer --tests  show full diff including tests
+  rv sources --stat     quick overview of what changed
+HELP
+  exit 0
+}
+
+[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
+[ "${1:-}" ] || usage
 
 lane="$1"; shift
 branch="agent/$lane"

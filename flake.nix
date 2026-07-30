@@ -93,6 +93,7 @@
           # Data wrangling: fetching the corpus and checking it.
           pkgs.curl
           pkgs.coreutils
+          pkgs.inotify-tools
 
           # Shared compilation cache. This is what makes parallel agent
           # worktrees affordable: each worktree keeps its own `target/` (cargo
