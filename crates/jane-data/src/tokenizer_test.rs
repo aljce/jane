@@ -12,12 +12,12 @@ fn temp_file_with(content: &str) -> NamedTempFile {
     f
 }
 
-fn train_small_tokenizer() -> JaneTokenizer {
+fn train_small_tokenizer() -> ByteTokenizer {
     // Repetitive text gives the trainer enough bigrams to actually merge.
     let content = "hello world hello world foo bar baz qux\n".repeat(200)
         + &"the quick brown fox jumps over the lazy dog\n".repeat(200);
     let f = temp_file_with(&content);
-    JaneTokenizer::train_from_files(&[f.path()], 300).unwrap()
+    ByteTokenizer::train_from_files(&[f.path()], 300).unwrap()
 }
 
 // --- train_from_files tests ---
@@ -45,7 +45,7 @@ fn train_all_ids_in_range() {
 #[test]
 fn train_rejects_vocab_below_256() {
     let f = temp_file_with("abc");
-    let err = JaneTokenizer::train_from_files(&[f.path()], 255).unwrap_err();
+    let err = ByteTokenizer::train_from_files(&[f.path()], 255).unwrap_err();
     assert!(
         matches!(err, DataError::Tokenizer(_)),
         "expected Tokenizer error, got {err:?}"
@@ -61,7 +61,7 @@ fn save_load_round_trip_encodes_identically() {
     let path = dir.path().join("tokenizer.json");
 
     tok.save(&path).unwrap();
-    let reloaded = JaneTokenizer::load(&path).unwrap();
+    let reloaded = ByteTokenizer::load(&path).unwrap();
 
     let sample = "hello world";
     assert_eq!(
@@ -72,7 +72,7 @@ fn save_load_round_trip_encodes_identically() {
 
 // --- encode / decode round-trip ---
 
-fn assert_round_trip(tok: &JaneTokenizer, s: &str) {
+fn assert_round_trip(tok: &ByteTokenizer, s: &str) {
     let ids = tok.encode(s).unwrap();
     let decoded = tok.decode(&ids).unwrap();
     assert_eq!(

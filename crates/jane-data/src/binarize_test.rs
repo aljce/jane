@@ -3,16 +3,16 @@ use std::io::{Read, Write};
 use tempfile::{NamedTempFile, tempdir};
 
 use super::*;
-use crate::tokenizer::{EOT_TOKEN, JaneTokenizer};
+use crate::tokenizer::{ByteTokenizer, EOT_TOKEN, Tokenizer};
 
 /// Build a small tokenizer trained on some simple text.
-fn make_tokenizer() -> JaneTokenizer {
+fn make_tokenizer() -> ByteTokenizer {
     let content = "hello world foo bar baz\n".repeat(200)
         + &"the quick brown fox jumps over the lazy dog\n".repeat(200);
     let mut f = NamedTempFile::new().unwrap();
     f.write_all(content.as_bytes()).unwrap();
     f.flush().unwrap();
-    JaneTokenizer::train_from_files(&[f.path()], 300).unwrap()
+    ByteTokenizer::train_from_files(&[f.path()], 300).unwrap()
 }
 
 fn write_text_file(content: &str) -> NamedTempFile {
@@ -78,7 +78,7 @@ fn token_count_matches_bin_length_and_sidecar() {
         "stats.tokens doesn't match bin length"
     );
 
-    let meta = crate::meta::TokenMeta::load_for(&out).unwrap();
+    let meta = TokenMeta::load_for(&out).unwrap();
     meta.check_bin_len(&out, bin_len).unwrap();
 }
 
@@ -133,7 +133,7 @@ fn empty_input_produces_valid_output() {
     assert_eq!(bin_len, 0, "empty input should produce 0-byte bin");
 
     // Sidecar must still be valid.
-    let meta = crate::meta::TokenMeta::load_for(&out).unwrap();
+    let meta = TokenMeta::load_for(&out).unwrap();
     meta.check_bin_len(&out, bin_len).unwrap();
 }
 
@@ -210,8 +210,7 @@ fn streaming_matches_per_doc_tokenization() {
 
     // Cross-check: independently tokenize each doc and verify content
     // token counts match.
-    let expected_content_tokens: usize =
-        docs.iter().map(|d| tok.encode(d).unwrap().len()).sum();
+    let expected_content_tokens: usize = docs.iter().map(|d| tok.encode(d).unwrap().len()).sum();
     let actual_content_tokens = ids.iter().filter(|&&x| x != eot).count();
     assert_eq!(
         actual_content_tokens, expected_content_tokens,
@@ -232,6 +231,6 @@ fn sidecar_records_vocab_size() {
 
     binarize_text_file(in_file.path(), &tok, &out, None).unwrap();
 
-    let meta = crate::meta::TokenMeta::load_for(&out).unwrap();
+    let meta = TokenMeta::load_for(&out).unwrap();
     assert_eq!(meta.vocab_size, tok.vocab_size());
 }
