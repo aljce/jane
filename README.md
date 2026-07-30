@@ -53,6 +53,7 @@ tree compiles once. This is why `.cargo/config.toml` sets `incremental = false`.
 
 | Path | What |
 | --- | --- |
+| [agent-orchestrator/RESUME.md](agent-orchestrator/RESUME.md) | **Start here in a new session** — current board and next actions |
 | [harness-soul.md](harness-soul.md) | The orchestrator's role and the four laws |
 | [agent-orchestrator/ownership](agent-orchestrator/ownership) | Lane → owned path globs. Enforced. |
 | [agent-orchestrator/flight.md](agent-orchestrator/flight.md) | What's in flight, agent ids, pipeline stage (`make status`) |
