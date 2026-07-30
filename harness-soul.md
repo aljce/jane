@@ -262,6 +262,21 @@ orchestrator-owned file, not a conversation.**
 `make status`
 reconciles it against live git and complains about drift.
 
+**Status heartbeat.** While lanes are in flight, output a status table to the
+human every two minutes. The table has one row per lane with its current state
+(`in-flight`, `awaiting-review`, `in-review`, `merged`, etc.). This keeps the
+human oriented without them having to ask. Example:
+
+```
+| Lane           | Status           |
+|----------------|------------------|
+| model-config   | merged           |
+| tokenizer      | in-flight        |
+| dataset        | in-review        |
+| sources        | awaiting-review  |
+| train-config   | merged           |
+```
+
 This is not bookkeeping for its own sake. The orchestrator's context is not
 durable: a long session gets summarized, and "which five agents are running and
 what are their ids" is exactly the detail that evaporates. Two things break when

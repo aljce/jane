@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# rv — review a lane's diff against master.
+#
+# Usage:
+#   rv dataset          # diff, excluding _test.rs files
+#   rv dataset --tests  # diff, including _test.rs files
+#   rv dataset --stat   # stat summary only
+#   rv dataset --files  # list changed files only
+#
+# Reads agent-orchestrator/ownership to scope the diff to the lane's
+# owned paths, so you see exactly what the agent was allowed to touch.
+# By default, *_test.rs files are excluded — pass --tests to see them.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+OWNERSHIP="agent-orchestrator/ownership"
+
+die() { echo "error: $*" >&2; exit 1; }
+
+[ "${1:-}" ] || die "usage: rv <lane> [--tests|--stat|--files|git-diff flags...]"
+
+lane="$1"; shift
+branch="agent/$lane"
+
+# Verify the branch exists.
+git rev-parse --verify "$branch" >/dev/null 2>&1 \
+  || die "branch '$branch' does not exist"
+
+# Pull owned globs from the ownership file.
+# Lines look like: agent/dataset = crates/jane-data/src/dataset.rs crates/jane-data/src/batcher.rs
+owned=()
+while IFS= read -r line; do
+  # Skip comments and blank lines.
+  [[ "$line" =~ ^[[:space:]]*# ]] && continue
+  [[ -z "$line" ]] && continue
+  key="${line%%=*}"
+  key="${key%% *}"  # trim trailing spaces
+  [[ "$key" == "agent/$lane" ]] || continue
+  rest="${line#*= }"
+  for glob in $rest; do
+    owned+=("$glob")
+  done
+done < "$OWNERSHIP"
+
+show_tests=false
+extra=()
+for arg in "$@"; do
+  case "$arg" in
+    --tests) show_tests=true ;;
+    --stat)  extra+=(--stat) ;;
+    --files) extra+=(--name-only) ;;
+    *)       extra+=("$arg") ;;
+  esac
+done
+
+# Filter out _test.rs files unless --tests is passed.
+if ! $show_tests; then
+  filtered=()
+  for glob in "${owned[@]}"; do
+    [[ "$glob" == *_test.rs ]] && continue
+    filtered+=("$glob")
+  done
+  owned=("${filtered[@]}")
+fi
+
+if [ ${#owned[@]} -gt 0 ]; then
+  git diff master.."$branch" "${extra[@]}" -- "${owned[@]}"
+else
+  git diff master.."$branch" "${extra[@]}"
+fi

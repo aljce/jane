@@ -21,11 +21,11 @@ orchestrator = *
 
 agent/model-config = crates/jane-model/src/config.rs configs/*.toml
 
-agent/tokenizer = crates/jane-data/src/tokenizer.rs crates/jane-data/src/binarize.rs
+agent/tokenizer = crates/jane-data/src/tokenizer.rs crates/jane-data/src/tokenizer_test.rs crates/jane-data/src/binarize.rs crates/jane-data/src/binarize_test.rs
 
-agent/dataset = crates/jane-data/src/dataset.rs crates/jane-data/src/batcher.rs
+agent/dataset = crates/jane-data/src/dataset.rs crates/jane-data/src/dataset_test.rs crates/jane-data/src/batcher.rs crates/jane-data/src/batcher_test.rs
 
-agent/sources = crates/jane-data/src/source.rs
+agent/sources = crates/jane-data/src/source.rs crates/jane-data/src/source_test.rs
 
 # Split out from agent/sources: training hyperparameters have nothing to do with
 # corpus acquisition. Lanes are cut along conceptual seams, not to balance size.

@@ -41,9 +41,9 @@ Keep the column order.
 | Lane | Status | Agent | Model | Doing | Blocker |
 | --- | --- | --- | --- | --- | --- |
 | `model-config` | merged | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
-| `tokenizer` | queued | — | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
-| `dataset` | blocked | — | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | STOPPED by user; uncommitted work in worktree |
-| `sources` | blocked | — | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | STOPPED by user; uncommitted work in worktree |
+| `tokenizer` | in-flight | — | opus | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
+| `dataset` | in-flight | — | opus | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
+| `sources` | in-flight | — | opus | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
 | `train-config` | merged | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
 <!-- lanes:end -->
 
@@ -89,3 +89,7 @@ for "why is master like this".
   to master and `lr_at` doc comment fixed in the same commit. `make gate` green
   on the merged whole (59 tests). Hook updated to allow `worktree-agent-*`
   branches so Agent tool worktree isolation works.
+- `2026-07-29` — Restarted `tokenizer`, `dataset`, `sources` with worktree
+  isolation (opus). Dataset and sources worktrees rebased onto master and
+  partial work preserved. Human review gate added to Law 3: merges >20 lines
+  require human approval on the diff.
