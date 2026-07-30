@@ -24,7 +24,7 @@ set -uo pipefail
 [ "${1:-}" = "prepared" ] || exit 0
 
 PROTECTED='^refs/heads/(master|main)$'
-AGENT_LANE='^refs/heads/agent/'
+AGENT_LANE='^refs/heads/(agent/|worktree-agent-)'
 
 git_dir="$(git rev-parse --absolute-git-dir 2>/dev/null)" || exit 0
 common_raw="$(git rev-parse --git-common-dir 2>/dev/null)" || exit 0

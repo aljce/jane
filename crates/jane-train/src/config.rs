@@ -137,7 +137,9 @@ impl TrainConfig {
     ///   never rising
     /// - monotonically non-increasing across `warmup_steps..=max_steps`
     /// - monotonically increasing across `0..warmup_steps`
-    /// - always within `[min_lr, lr]` for every step in `0..=max_steps * 2`
+    /// - always within `[0, lr]` for every step in `0..=max_steps * 2`
+    ///   (`min_lr` is the floor of cosine decay, not a global floor — warmup
+    ///   starts near zero by design)
     /// - `warmup_steps == 0` does not divide by zero: step 0 gives `lr`
     pub fn lr_at(&self, step: usize) -> f64 {
         if step < self.warmup_steps {
