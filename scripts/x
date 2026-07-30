@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run a command inside this worktree's Nix dev shell.
+#
+# Agent shells don't have direnv loaded, so `cargo` there would be the bare
+# system toolchain with no sccache, no CUDA and no Python. Everything that
+# compiles or tests must go through here:
+#
+#   ./scripts/x cargo test --workspace
+#   ./scripts/x cargo clippy --all-targets -- -D warnings
+#
+# Uses the flake of the *current worktree*, so each agent gets its own checkout's
+# toolchain while still sharing the global sccache and /nix/store.
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+  echo "usage: scripts/x <command> [args...]" >&2
+  exit 64
+fi
+
+root="$(git rev-parse --show-toplevel)"
+exec nix develop "$root" --command "$@"

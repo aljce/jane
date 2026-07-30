@@ -1,0 +1,20 @@
+# Committed so that every git worktree an agent runs in inherits it.
+
+[build]
+# REQUIRED for the shared sccache to be worth anything. sccache cannot cache
+# incrementally-compiled crates — it silently bypasses the cache for them. With
+# incremental on, parallel agent worktrees would each recompile the world.
+#
+# The cost is slower warm rebuilds of our own (small) crates. That is a good
+# trade here: the expensive compilation is Burn's dependency tree, which is
+# never incremental anyway.
+incremental = false
+
+# NOTE: deliberately no `target-dir` here. Cargo takes an exclusive lock on the
+# build directory, so pointing all worktrees at one shared target dir would make
+# parallel agents block on each other ("Blocking waiting for file lock on build
+# directory") instead of running concurrently. Isolation comes from per-worktree
+# target dirs; cross-worktree reuse comes from sccache.
+
+[term]
+verbose = false

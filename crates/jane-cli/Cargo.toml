@@ -1,0 +1,25 @@
+[package]
+name = "jane-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "jane command-line interface"
+
+[[bin]]
+name = "jane"
+path = "src/main.rs"
+
+[dependencies]
+jane-model = { workspace = true }
+jane-data = { workspace = true }
+jane-train = { workspace = true }
+burn = { workspace = true, features = ["std", "ndarray"] }
+clap = { workspace = true }
+anyhow = { workspace = true }
+
+[features]
+default = []
+# Opt-in so the workspace builds and tests without a CUDA toolchain present.
+#   ./scripts/x cargo run -p jane-cli --features cuda -- smoke --backend cuda
+cuda = ["burn/cuda"]

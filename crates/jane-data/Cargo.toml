@@ -1,0 +1,25 @@
+[package]
+name = "jane-data"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Corpus fetching, BPE tokenization, binarization and the token dataset"
+
+# No jane-model dependency: everything here takes vocab_size/seq_len as plain
+# arguments. That keeps this crate independent of the model config so the two can
+# be worked on in parallel.
+[dependencies]
+# `dataset` gates burn::data::dataloader, which the Batcher trait lives in.
+burn = { workspace = true, features = ["std", "ndarray", "dataset"] }
+burn-dataset = { workspace = true, features = ["sqlite"] }
+tokenizers = { workspace = true }
+memmap2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+indicatif = { workspace = true }
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = { workspace = true }

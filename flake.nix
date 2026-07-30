@@ -84,9 +84,9 @@
           pkgs.sqlite
           pkgs.zlib
 
-          # nvcc is not needed for runtime-compiled kernels, but cuda-gdb and
-          # the headers are useful when a kernel misbehaves.
-          cuda.cuda_nvcc
+          # Merged toolkit: needed for the CUDA headers NVRTC includes at
+          # runtime (see CUDA_PATH below), not just for nvcc.
+          cuda.cudatoolkit
           cuda.cuda_cudart
           cuda.cuda_nvrtc
 
@@ -94,15 +94,29 @@
           pkgs.curl
           pkgs.coreutils
 
+          # Shared compilation cache. This is what makes parallel agent
+          # worktrees affordable: each worktree keeps its own `target/` (cargo
+          # takes an exclusive lock on a build dir, so *sharing* one would
+          # serialize agents), while sccache means Burn's dependency tree is
+          # actually compiled only once across all of them.
+          pkgs.sccache
+
+          pkgs.git
+
           # Quality of life.
           pkgs.cargo-watch
           pkgs.cargo-nextest
           pkgs.tokei
         ];
 
-        # Burn / CubeCL discovery.
-        CUDA_PATH = cuda.cuda_nvcc;
-        CUDA_ROOT = cuda.cuda_nvcc;
+        # CubeCL generates CUDA C that `#include <cuda_runtime.h>` and compiles it
+        # at runtime with NVRTC, passing `--include-path=$CUDA_PATH/include`
+        # (cubecl-cuda's `install::include_path`). So CUDA_PATH must point at a
+        # tree that actually has `include/cuda_runtime.h` — the split
+        # `cuda_nvcc`/`cuda_cudart` outputs do not. `cudatoolkit` is the merged
+        # distribution and does.
+        CUDA_PATH = cuda.cudatoolkit;
+        CUDA_ROOT = cuda.cudatoolkit;
         LD_LIBRARY_PATH = libraryPath;
 
         # Keep rust-analyzer able to jump into std.
@@ -119,7 +133,21 @@
         # Full backtraces are worth the noise while writing kernels.
         RUST_BACKTRACE = "1";
 
+        # Route every rustc call through sccache. Set here rather than in
+        # .cargo/config.toml so it can never point at an sccache that isn't on
+        # PATH. Note `incremental = false` in .cargo/config.toml is a hard
+        # requirement for this to hit — sccache cannot cache incremental builds.
+        RUSTC_WRAPPER = "sccache";
+
+        SCCACHE_CACHE_SIZE = "20G";
+
         shellHook = ''
+          # Absolute and outside the repo, so every agent worktree shares one
+          # cache. Expanded here rather than in a Nix string because flakes
+          # evaluate purely — builtins.getEnv "HOME" would yield "".
+          export SCCACHE_DIR="''${SCCACHE_DIR:-$HOME/.cache/sccache/jane}"
+          mkdir -p "$SCCACHE_DIR"
+
           echo "jane — transformer from scratch (Burn 0.20.1)"
           echo "  rustc:  $(rustc --version)"
           echo "  python: $(python3 --version) (datasets $(python3 -c 'import datasets; print(datasets.__version__)' 2>/dev/null || echo '??'))"

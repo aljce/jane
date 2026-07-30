@@ -1,0 +1,45 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/jane-model",
+  "crates/jane-data",
+  "crates/jane-train",
+  "crates/jane-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Pinned exactly: 0.22.0-pre.x is a pre-release, and API drift between Burn
+# minor versions is significant enough that a caret range is a liability.
+burn = { version = "=0.20.1", default-features = false }
+burn-dataset = { version = "=0.20.1" }
+
+jane-model = { path = "crates/jane-model" }
+jane-data = { path = "crates/jane-data" }
+jane-train = { path = "crates/jane-train" }
+
+anyhow = "1.0"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "1.0"
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
+memmap2 = "0.9"
+clap = { version = "4.6", features = ["derive"] }
+indicatif = "0.18"
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+# Tokenizing 2.2 GB is unusably slow in a debug build, but a full release build
+# loses debug assertions in our own code. This keeps our crates checked while
+# compiling dependencies (tokenizers, burn) with optimizations.
+[profile.dev.package."*"]
+opt-level = 3

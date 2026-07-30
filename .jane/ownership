@@ -1,0 +1,28 @@
+# File ownership manifest — ENFORCED by .githooks/pre-commit.
+#
+# Format:  <branch> = <space-separated path globs>
+#
+# A branch may only commit changes to files matching one of its globs. Anything
+# else is rejected. This is what makes parallel agents safe: because no two
+# branches share a path, merging their work can never conflict.
+#
+# `orchestrator` is the pseudo-branch covering the protected branches (master,
+# main) and is the only owner of shared surface: workspace manifests, the flake,
+# the harness itself, and every module two or more agents depend on.
+#
+# An agent that needs a file it does not own must ESCALATE rather than reach for
+# it. See harness-soul.md §4.
+
+orchestrator = *
+
+# --- Phase 0/1 agent lanes -------------------------------------------------
+# Each lane is closed under compilation: it can be implemented and tested
+# without any other lane's code existing.
+
+agent/model-config = crates/jane-model/src/config.rs configs/*.toml
+
+agent/tokenizer = crates/jane-data/src/tokenizer.rs crates/jane-data/src/binarize.rs
+
+agent/dataset = crates/jane-data/src/dataset.rs crates/jane-data/src/batcher.rs
+
+agent/sources = crates/jane-data/src/source.rs crates/jane-train/src/config.rs

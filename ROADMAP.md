@@ -26,24 +26,31 @@ These were probed, not assumed:
 | --- | --- |
 | Rust | 1.91.1 (Burn MSRV is 1.89 ✓) |
 | Burn (latest stable) | **0.20.1** — `0.22.0-pre.1` is a pre-release, avoid |
-| GPU | **NVIDIA RTX 5070 Laptop, 12 GB VRAM** |
+| GPU | **NVIDIA RTX 5070 Ti Laptop, 12227 MiB VRAM** |
 | Driver / CUDA | 577.05 / CUDA 12.9 |
 | nixpkgs CUDA toolkit | 12.8 (`cuda_nvrtc` 12.8.93) |
 | CPU / RAM | 16 cores / 15 GB |
 | Host | NixOS 25.11 on WSL2, Nix 2.31.4, flakes enabled |
+| Measured fp32 matmul | **9.8 TFLOP/s** (4096², warm) via `make smoke-cuda` |
 
-**Two environment gotchas already solved in `flake.nix`:**
+**Three environment gotchas already solved in `flake.nix`:**
 
 1. `nvidia-smi` fails by default here. The WSL driver libraries live in
    `/usr/lib/wsl/lib` (`libcuda.so.1`, `libnvidia-ml.so.1`), which NixOS does not
    put on the dynamic linker path. The dev shell prepends it to
    `LD_LIBRARY_PATH`. On non-WSL NixOS the equivalent path is
    `/run/opengl-driver/lib`.
-2. The RTX 5070 is Blackwell (**sm_120**). Frameworks that ship precompiled
+2. The RTX 5070 Ti is Blackwell (**sm_120**). Frameworks that ship precompiled
    fatbins (e.g. stable PyTorch) still lag on sm_120. Burn sidesteps this: CubeCL
-   compiles kernels **at runtime via NVRTC** for the detected compute capability,
-   and NVRTC 12.8 supports sm_120. This is a genuine structural advantage for
-   this project, but it is the single biggest technical risk — see §6.
+   compiles kernels **at runtime via NVRTC** for the detected compute capability.
+   **Verified working** — see §6.
+3. `CUDA_PATH` must point at `cudaPackages.cudatoolkit` (the *merged*
+   distribution), not `cuda_nvcc` or `cuda_cudart`. CubeCL emits CUDA C
+   containing `#include <cuda_runtime.h>` and passes
+   `--include-path=$CUDA_PATH/include` to NVRTC, so the header must really be
+   there. The split outputs don't have it, and the failure is a runtime
+   `catastrophic error: cannot open source file "cuda_runtime.h"` on the first
+   kernel launch — nothing at build time warns you.
 
 ### Backends
 
@@ -321,10 +328,13 @@ Each phase ends in something runnable.
 - [x] `flake.nix` with Rust 1.91.1 + CUDA 12.8 + WSL driver path wiring
 - [x] `rust-toolchain.toml`, `.envrc`, `.gitignore`
 - [x] Python env in the flake for `HuggingfaceDatasetLoader` (`datasets`, `sqlalchemy`, `pyarrow`, `pillow`, `soundfile`)
-- [ ] Cargo workspace: `jane-model`, `jane-data`, `jane-train`, `jane-cli`
-- [ ] `JaneConfig` / `TrainConfig` / `DataConfig` + the four preset TOMLs (§3.3)
-- [ ] **Backend smoke test**: allocate a tensor, matmul, print CUDA device name.
-      Proves sm_120 + NVRTC before any real work is invested.
+- [x] Cargo workspace: `jane-model`, `jane-data`, `jane-train`, `jane-cli`
+- [x] Agent harness: sccache build isolation, worktree lanes, ownership
+      enforcement, `Makefile` (see `harness-soul.md`)
+- [x] **Backend smoke test** — `make smoke` (CPU) and `make smoke-cuda` (GPU) both
+      pass. This was the Phase 0 gate; sm_120 is confirmed working.
+- [ ] `JaneConfig` / `TrainConfig` + the four preset TOMLs (§3.3) — *contracts
+      written, implementation delegated to agent lanes*
 
 ### Phase 1 — Data pipeline
 - [ ] `DataSource` trait with two impls: `HuggingfaceDatasetLoader`
@@ -388,7 +398,7 @@ Each phase ends in something runnable.
 
 | Risk | Severity | Mitigation |
 | --- | --- | --- |
-| **CubeCL/NVRTC can't target sm_120** | **High** — blocks all GPU training | This is why Phase 0's smoke test comes before everything. If it fails: bump to a Burn `0.22.0-pre` (Blackwell fixes land in CubeCL fast), pin a newer `cudaPackages`, or fall back to CPU + `jane-1m` on Rung 1. |
+| ~~CubeCL/NVRTC can't target sm_120~~ | **RETIRED** | Verified on 2026-07-29: `make smoke-cuda` runs a 4096² fp32 matmul at 9.8 TFLOP/s on the RTX 5070 Ti and reads the result back correctly. CubeCL's runtime NVRTC compilation handles sm_120. The one real obstacle was the `CUDA_PATH` header issue in §1, not the architecture. |
 | **HF loader pip-installs into a venv** | Medium — fails on NixOS | `.with_use_python_venv(false)` so it uses the flake's `python3`. Wrap loader construction in one helper so this can't be forgotten at a second call site. |
 | Burn 0.20 API drift vs. online examples | Medium | Trust `cargo doc` and the version's own `examples/`, not blog posts. Pin the exact version in `Cargo.toml`. |
 | Silent causal-mask bug | Medium — trains fine, "too good" val loss | The future-perturbation test in Phase 2. A model that peeks looks *better* on loss, so only an explicit test catches it. |
@@ -422,3 +432,40 @@ jane/
 - [Chinchilla scaling laws](https://arxiv.org/abs/2203.15556)
 - [Burn book](https://burn.dev/books/burn/) · [`burn` 0.20.1 docs](https://docs.rs/burn/0.20.1) · [Burn examples](https://github.com/tracel-ai/burn/tree/main/examples)
 - [`tokenizers` crate](https://docs.rs/tokenizers)
+## 9. Tooling backlog
+
+Developer-experience requests, most from subagents hitting friction mid-lane.
+
+Agents cannot edit this file — `Makefile`, `scripts/` and `ROADMAP.md` are all
+orchestrator-owned (`.jane/ownership`). That is deliberate: four agents each
+"just adding a quick target" is how a build system rots. Instead an agent reports
+the friction in its final summary and the orchestrator transcribes it here, so
+requests are visible, deduplicated, and decided once.
+
+Request format: what you were doing, what was awkward, what would have helped.
+
+### Done
+
+- [x] `make` targets wrapping `./scripts/x cargo …` — the raw commands were long
+      enough to be error-prone and easy to run outside the dev shell by accident
+- [x] Per-lane test targets (`make t-model`, `t-tokenizer`, `t-dataset`,
+      `t-sources`) so a lane doesn't wait on unrelated crates
+- [x] `make gate` as the single pre-review command
+- [x] `make sccache-stats` to confirm the harness is actually sharing compilation
+
+### Requested
+
+- [ ] `make t-<lane> WATCH=1` via `cargo-watch` (already in the flake) for a
+      continuous loop
+- [ ] `make fix` = `cargo clippy --fix` + `cargo fmt`, for mechanical lint churn
+- [ ] A `jane inspect-bin <file>` command dumping the first N tokens of a `.bin`
+      with their decoded text — the obvious tool for debugging the dataset lane,
+      and currently everyone writes it ad hoc in a test
+- [ ] `make nextest` — `cargo-nextest` is in the flake and gives better output
+      and per-test isolation than `cargo test`
+- [ ] Test fixture helper for a tiny deterministic `.bin` + sidecar. Both the
+      dataset and tokenizer lanes need one; if both write their own it belongs in
+      an orchestrator-owned `jane-data/src/testing.rs` instead (§5 of
+      harness-soul.md)
+- [ ] `make prepare-tiny` for a fast rung-0/rung-1 end-to-end pipeline run
+

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# THE HARD GATE: only the primary worktree may move a protected branch.
+#
+# Why this hook and not pre-commit? `git commit --no-verify` skips pre-commit and
+# pre-push entirely. It does NOT skip reference-transaction, which fires inside
+# the ref-update transaction itself. There is no porcelain flag that bypasses it,
+# so this is the strictest enforcement point git offers a local repo.
+#
+# The orchestrator is defined structurally, not by trust: it is whoever holds the
+# PRIMARY worktree. Every subagent runs in a LINKED worktree (git worktree add),
+# where `--git-dir` is .git/worktrees/<name> while `--git-common-dir` stays .git.
+# That asymmetry is not something an agent can talk its way out of.
+#
+# Consequence: an agent literally cannot create a commit on master, no matter
+# what it is instructed or persuaded to do. It can only move agent/* branches.
+#
+# FAIL-OPEN on internal error. A bug in this hook would otherwise brick every git
+# operation in the repo, which is a worse failure than a missed check — the
+# pre-commit hook and mandatory review both still stand behind it.
+
+set -uo pipefail
+
+# Only the "prepared" stage can veto the transaction.
+[ "${1:-}" = "prepared" ] || exit 0
+
+PROTECTED='^refs/heads/(master|main)$'
+AGENT_LANE='^refs/heads/agent/'
+
+git_dir="$(git rev-parse --absolute-git-dir 2>/dev/null)" || exit 0
+common_raw="$(git rev-parse --git-common-dir 2>/dev/null)" || exit 0
+common_dir="$(cd "$common_raw" 2>/dev/null && pwd)" || exit 0
+
+# Equal => primary worktree (the orchestrator). Different => linked worktree.
+if [ "$git_dir" = "$common_dir" ]; then
+  exit 0
+fi
+
+while read -r _old _new ref; do
+  [ -n "${ref:-}" ] || continue
+
+  if [[ "$ref" =~ $PROTECTED ]]; then
+    cat >&2 <<EOF
+
+BLOCKED: refusing to move '$ref' from a linked worktree.
+
+  Only the orchestrator (the primary worktree) may commit to a protected branch.
+  You are a subagent in $(basename "$git_dir").
+
+  Commit to your own lane instead:
+      git checkout -B agent/<your-lane>
+      git commit -m "..."
+
+  Then report completion. The orchestrator reviews and merges.
+  See harness-soul.md §2 (Law 1).
+EOF
+    exit 1
+  fi
+
+  # A linked worktree may only ever move its own kind of branch. This stops an
+  # agent from parking work on some other ref to get around the rule above.
+  if [[ "$ref" == refs/heads/* ]] && ! [[ "$ref" =~ $AGENT_LANE ]]; then
+    cat >&2 <<EOF
+
+BLOCKED: refusing to move '$ref' from a linked worktree.
+
+  Subagent worktrees may only update branches under 'agent/'.
+  Rename your branch:
+      git branch -m agent/<your-lane>
+
+  See harness-soul.md §2 (Law 1).
+EOF
+    exit 1
+  fi
+done
+
+exit 0

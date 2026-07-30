@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Enforces the file-ownership manifest in .jane/ownership.
+#
+# This is the check that makes parallel agents mergeable: if no two lanes can
+# touch the same path, their branches cannot conflict. It also stops an agent
+# from "helpfully" fixing a shared type, which is the orchestrator's call to make
+# (harness-soul.md §5).
+#
+# Bypassable with --no-verify, unlike .githooks/reference-transaction. That is
+# acceptable: this hook prevents collisions, while the un-bypassable hook prevents
+# unauthorized writes to master. Defence in depth, not a single wall.
+
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)" || exit 0
+manifest="$root/.jane/ownership"
+[ -f "$manifest" ] || exit 0
+
+# Detached HEAD (rebase, bisect) — nothing sensible to enforce against.
+branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || exit 0
+
+git_dir="$(git rev-parse --absolute-git-dir 2>/dev/null)" || exit 0
+common_raw="$(git rev-parse --git-common-dir 2>/dev/null)" || exit 0
+common_dir="$(cd "$common_raw" 2>/dev/null && pwd)" || exit 0
+is_linked=1
+[ "$git_dir" = "$common_dir" ] && is_linked=0
+
+lookup() {
+  # First matching "<key> = <globs>" line wins; comments and blanks skipped.
+  local key="$1"
+  sed -e 's/#.*//' "$manifest" |
+    while IFS= read -r line; do
+      case "$line" in
+        "$key"[[:space:]]*=*|"$key"=*)
+          printf '%s\n' "${line#*=}"
+          return 0
+          ;;
+      esac
+    done
+}
+
+case "$branch" in
+  master | main) globs="$(lookup orchestrator)" ;;
+  *)
+    globs="$(lookup "$branch")"
+    if [ -z "${globs// /}" ]; then
+      if [ "$is_linked" -eq 0 ]; then
+        # Orchestrator on an ad-hoc branch. Allowed, but say so out loud.
+        echo "note: branch '$branch' has no ownership entry; allowing (primary worktree)." >&2
+        exit 0
+      fi
+      cat >&2 <<EOF
+
+BLOCKED: branch '$branch' has no entry in .jane/ownership.
+
+  A subagent lane must be declared before it can commit. Ask the orchestrator to
+  add it — do not add it yourself, .jane/ownership is orchestrator-owned.
+
+  See harness-soul.md §4.
+EOF
+      exit 1
+    fi
+    ;;
+esac
+
+staged="$(git diff --cached --name-only --diff-filter=ACMRD)"
+[ -n "$staged" ] || exit 0
+
+violations=()
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  allowed=0
+  for glob in $globs; do
+    # shellcheck disable=SC2053  # intentional glob match, not string equality
+    if [[ "$file" == $glob ]]; then
+      allowed=1
+      break
+    fi
+  done
+  [ "$allowed" -eq 1 ] || violations+=("$file")
+done <<<"$staged"
+
+if [ ${#violations[@]} -gt 0 ]; then
+  cat >&2 <<EOF
+
+BLOCKED: branch '$branch' staged files it does not own.
+
+$(printf '  %s\n' "${violations[@]}")
+
+  This lane owns only:
+$(printf '  %s\n' $globs)
+
+  If you genuinely need one of those files changed — a shared type, a new
+  dependency, a fix to another lane's module — that is an ESCALATION, not an
+  edit. Unstage it and report the need:
+
+      git restore --staged ${violations[0]}
+
+  The orchestrator owns every shared surface precisely so that two agents can
+  never disagree about it in parallel. See harness-soul.md §4 and §5.
+EOF
+  exit 1
+fi
+
+exit 0
