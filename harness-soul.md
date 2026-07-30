@@ -232,6 +232,19 @@ orchestrator-owned file, not a conversation.**
   make gate               on the merged whole — green lanes can still sum to red
 ```
 
+**Record every transition in `.jane/flight.md`** as it happens — `make status`
+reconciles it against live git and complains about drift.
+
+This is not bookkeeping for its own sake. The orchestrator's context is not
+durable: a long session gets summarized, and "which five agents are running and
+what are their ids" is exactly the detail that evaporates. Two things break when
+it does. Law 3 routes review findings back to the *warm* implementer via
+`SendMessage`, which needs an agent id that no longer exists anywhere. And an
+unrecorded `agent/*` branch is work on disk that nobody remembers asking for.
+
+An orchestrator that writes the board down is restartable. One that keeps it in
+context is a single point of failure with no backup.
+
 Two rules about the ends of that loop:
 
 **Contracts before fan-out, always.** A lane whose contract is still moving will
@@ -246,6 +259,7 @@ workspace; that is precisely what nobody tested.
 
 ```sh
 make hooks           # once per clone — activates enforcement
+make status          # flight log vs. live git; run it before and after every transition
 make gate            # fmt-check + clippy -D warnings + tests
 make t-model         # single-lane loop
 make smoke-cuda      # Phase 0 GPU gate
@@ -274,6 +288,7 @@ that `RUSTC_WRAPPER` is set inside the shell.
 | Artifact | Purpose |
 | --- | --- |
 | `.jane/ownership` | Lane → path globs. Enforced. |
+| `.jane/flight.md` | What is in the air, agent ids, pipeline stage. `make status`. |
 | `.githooks/reference-transaction` | Protected branches. Un-bypassable. |
 | `.githooks/pre-commit` | Ownership. Skippable with `--no-verify`. |
 | `.claude/agents/rust-impl.md` | Implementer. No `Agent` tool. |

@@ -97,6 +97,10 @@ prepare: ## Phase 1 pipeline on the rung-0 corpus (fast)
 hooks: ## Install the enforcement hooks (run once per clone)
 	./scripts/setup-hooks.sh
 
+.PHONY: status
+status: ## Which lanes are in flight, reconciled against live git state
+	./scripts/flight.sh
+
 .PHONY: wt
 wt: ## List agent worktrees
 	./scripts/agent-worktree.sh list
