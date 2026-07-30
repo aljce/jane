@@ -1,0 +1,11 @@
+# 1.28M params (tied). CI and CPU-only tests.
+# See ROADMAP §3.2 and JaneConfig::preset(Preset::Jane1m).
+vocab_size = 4096
+d_model = 128
+n_layers = 4
+n_heads = 4
+seq_len = 256
+dropout = 0.0
+rope_theta = 10000.0
+norm_eps = 1e-5
+tie_embeddings = true
