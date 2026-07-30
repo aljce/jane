@@ -34,7 +34,9 @@ impl<B: Backend> RmsNorm<B> {
     /// - gamma has shape `[d_model]` and all values are 1.0
     /// - eps is stored correctly
     pub fn new(d_model: usize, eps: f64, device: &B::Device) -> Self {
-        todo!()
+        // Initializer::Ones.init already returns Param<Tensor<B, 1>>.
+        let gamma = Initializer::Ones.init([d_model], device);
+        Self { gamma, eps }
     }
 
     /// `x / sqrt(mean(x², dim=-1, keepdim=true) + eps) * gamma`
@@ -50,7 +52,11 @@ impl<B: Backend> RmsNorm<B> {
     /// - the output changes when gamma is modified (proving it's not hardcoded)
     /// - a vector of zeros does not produce NaN (eps prevents it)
     pub fn forward<const D: usize>(&self, x: Tensor<B, D>) -> Tensor<B, D> {
-        todo!()
+        // Compute RMS over the last dimension; mean_dim keeps the dim so rms
+        // broadcasts naturally against x.
+        let rms = (x.clone().powf_scalar(2.0).mean_dim(D - 1) + self.eps).sqrt();
+        // gamma shape [d_model] → unsqueeze to [1, ..., 1, d_model] for broadcast.
+        (x / rms) * self.gamma.val().unsqueeze()
     }
 }
 
