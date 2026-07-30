@@ -66,8 +66,12 @@ t-dataset: ## Test the dataset lane (dataset + batcher)
 	$(CARGO) test -p jane-data dataset:: batcher::
 
 .PHONY: t-sources
-t-sources: ## Test the sources lane (source + train config)
-	$(CARGO) test -p jane-data source:: && $(CARGO) test -p jane-train
+t-sources: ## Test the sources lane (corpus acquisition)
+	$(CARGO) test -p jane-data source::
+
+.PHONY: t-train
+t-train: ## Test the train-config lane
+	$(CARGO) test -p jane-train
 
 .PHONY: t-ignored
 t-ignored: ## Run the network/Python tests that are #[ignore]d by default

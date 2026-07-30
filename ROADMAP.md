@@ -449,7 +449,7 @@ Request format: what you were doing, what was awkward, what would have helped.
 - [x] `make` targets wrapping `./scripts/x cargo …` — the raw commands were long
       enough to be error-prone and easy to run outside the dev shell by accident
 - [x] Per-lane test targets (`make t-model`, `t-tokenizer`, `t-dataset`,
-      `t-sources`) so a lane doesn't wait on unrelated crates
+      `t-sources`, `t-train`) so a lane doesn't wait on unrelated crates
 - [x] `make gate` as the single pre-review command
 - [x] `make sccache-stats` to confirm the harness is actually sharing compilation
 
