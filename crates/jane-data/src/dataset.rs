@@ -7,9 +7,12 @@
 //! test fixtures directly (`std::fs::write` of `u16::to_le_bytes`) without
 //! depending on the binarizer.
 
+use memmap2::Mmap;
+use std::fs::File;
+
 use burn_dataset::Dataset;
 
-use crate::Result;
+use crate::{DataError, Result, TokenMeta};
 
 /// One training window. `target` is `input` shifted left by one token.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,9 +22,12 @@ pub struct TokenSample {
 }
 
 /// A `.bin` token file, memory-mapped and sliced into fixed windows.
+#[derive(Debug)]
 pub struct TokenDataset {
-    // Hold the `Mmap` plus seq_len/stride/token_count.
-    _private: (),
+    mmap: Mmap,
+    seq_len: usize,
+    stride: usize,
+    token_count: usize,
 }
 
 impl TokenDataset {
@@ -41,17 +47,40 @@ impl TokenDataset {
     /// - a `.bin` of odd byte length is rejected
     /// - a sidecar whose `token_count` disagrees with the file is rejected
     /// - a missing sidecar is rejected with a path in the message
-    pub fn open(
-        _bin: impl AsRef<std::path::Path>,
-        _seq_len: usize,
-        _stride: usize,
-    ) -> Result<Self> {
-        todo!("TokenDataset::open")
+    pub fn open(bin: impl AsRef<std::path::Path>, seq_len: usize, stride: usize) -> Result<Self> {
+        let bin = bin.as_ref();
+
+        if seq_len == 0 {
+            return Err(DataError::Meta("seq_len must be >= 1".into()));
+        }
+        if stride == 0 {
+            return Err(DataError::Meta("stride must be >= 1".into()));
+        }
+
+        // Load and validate sidecar — propagates a path-bearing Io error if missing.
+        let meta = TokenMeta::load_for(bin)?;
+
+        let file = File::open(bin).map_err(|e| DataError::io(bin, e))?;
+        let len_bytes = file.metadata().map_err(|e| DataError::io(bin, e))?.len();
+
+        // Validates odd-byte and count-mismatch cases.
+        meta.check_bin_len(bin, len_bytes)?;
+
+        // Safety: the file is not modified while we hold the mapping (standard
+        // mmap caveat; acceptable in a training data pipeline).
+        let mmap = unsafe { Mmap::map(&file) }.map_err(|e| DataError::io(bin, e))?;
+
+        Ok(Self {
+            mmap,
+            seq_len,
+            stride,
+            token_count: meta.token_count as usize,
+        })
     }
 
     /// Total tokens in the file.
     pub fn token_count(&self) -> usize {
-        todo!("TokenDataset::token_count")
+        self.token_count
     }
 
     /// Token at absolute index, decoded little-endian. Panics out of bounds.
@@ -60,16 +89,21 @@ impl TokenDataset {
     /// Write a known `u16` sequence to a fixture and assert every index reads
     /// back exactly, including values above 255 (which is where a byte-order or
     /// stride bug shows up).
-    pub fn token_at(&self, _index: usize) -> u32 {
-        todo!("TokenDataset::token_at")
+    pub fn token_at(&self, index: usize) -> u32 {
+        assert!(
+            index < self.token_count,
+            "token index {index} out of bounds"
+        );
+        let byte = index * 2;
+        u16::from_le_bytes([self.mmap[byte], self.mmap[byte + 1]]) as u32
     }
 
     pub fn seq_len(&self) -> usize {
-        todo!("TokenDataset::seq_len")
+        self.seq_len
     }
 
     pub fn stride(&self) -> usize {
-        todo!("TokenDataset::stride")
+        self.stride
     }
 }
 
@@ -109,11 +143,32 @@ impl Dataset<TokenSample> for TokenDataset {
     /// - `get(0)` starts at token 0; `get(1)` starts at token `stride`
     /// - the final window's last target index is `< token_count` (never reads
     ///   past the end — this is the bounds bug the window arithmetic invites)
-    fn get(&self, _index: usize) -> Option<TokenSample> {
-        todo!("TokenDataset::get")
+    fn get(&self, index: usize) -> Option<TokenSample> {
+        if index >= self.len() {
+            return None;
+        }
+        let start = index * self.stride;
+        let input = (start..start + self.seq_len)
+            .map(|i| self.token_at(i))
+            .collect();
+        let target = (start + 1..start + self.seq_len + 1)
+            .map(|i| self.token_at(i))
+            .collect();
+        Some(TokenSample { input, target })
     }
 
     fn len(&self) -> usize {
-        todo!("TokenDataset::len")
+        let tc = self.token_count;
+        let sl = self.seq_len;
+        // Need at least seq_len+1 tokens for one window (input + one-past target).
+        if tc < sl + 1 {
+            0
+        } else {
+            (tc - sl - 1) / self.stride + 1
+        }
     }
 }
+
+#[cfg(test)]
+#[path = "dataset_test.rs"]
+mod tests;
