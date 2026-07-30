@@ -39,7 +39,14 @@ logged="$(awk -F'|' '/lanes:begin/{i=1;next} /lanes:end/{i=0} i && /^\| *`/ { gs
 
 # Live git state.
 branches="$(git branch --list 'agent/*' --format='%(refname:short)' | sed 's|^agent/||' | sort -u)"
-merged="$(git branch --merged master --list 'agent/*' --format='%(refname:short)' | sed 's|^agent/||' | sort -u)"
+# "Merged" must mean "contributed something that is now on master". A freshly
+# created lane still points at master's tip, so `git branch --merged` calls it
+# merged when in truth it has not started — excluding tip==master is what makes
+# the distinction. Without this every new lane reports as already merged.
+master_tip="$(git rev-parse master 2>/dev/null)"
+merged="$(git branch --merged master --list 'agent/*' \
+  --format='%(refname:short) %(objectname)' |
+  awk -v m="$master_tip" '$2 != m { sub("^agent/", "", $1); print $1 }' | sort -u)"
 worktrees="$(git worktree list --porcelain | awk '/^branch refs\/heads\/agent\//{sub("branch refs/heads/agent/","");print}' | sort -u)"
 
 problems=0
@@ -87,7 +94,7 @@ done < <(awk -F'|' '/lanes:begin/{i=1;next} /lanes:end/{i=0} i && /^\| *`/ {prin
 
 echo "${bold}Live git${reset}"
 printf '  %-12s %s\n' "branches:"  "${branches//$'\n'/ }"
-printf '  %-12s %s\n' "worktrees:" "${worktrees:-（none）}"
+printf '  %-12s %s\n' "worktrees:" "${worktrees:+${worktrees//$'\n'/ }}"
 printf '  %-12s %s\n' "merged:"    "${merged//$'\n'/ }"
 echo
 

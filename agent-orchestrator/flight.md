@@ -40,11 +40,11 @@ Keep the column order.
 <!-- lanes:begin -->
 | Lane | Status | Agent | Model | Doing | Blocker |
 | --- | --- | --- | --- | --- | --- |
-| `model-config` | queued | — | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
-| `tokenizer` | queued | — | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
-| `dataset` | queued | — | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
-| `sources` | queued | — | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
-| `train-config` | queued | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
+| `model-config` | in-flight | session | sonnet | `JaneConfig` geometry, `param_count` closed form, the four preset TOMLs, validation | — |
+| `tokenizer` | in-flight | session | sonnet | Byte-level BPE training/save/load, exact round-trip, streaming text → flat `u16` `.bin` + sidecar | — |
+| `dataset` | in-flight | session | sonnet | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
+| `sources` | in-flight | session | sonnet | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
+| `train-config` | in-flight | session | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
 <!-- lanes:end -->
 
 Model choice is per-lane on purpose: raise it for a lane whose difficulty turns
@@ -59,3 +59,12 @@ for "why is master like this".
   green. Five lanes declared in `agent-orchestrator/ownership`. Nothing spawned yet.
 - `2026-07-29` — `train-config` split out of `sources` (`5d8caf4`); the two were
   bundled to balance size, which is not a reason.
+- `2026-07-29` — All five lanes spawned on sonnet, one per pre-created worktree
+  under `../jane-worktrees/`. Two harness features were unavailable because this
+  session began before the git repo and the agent definitions existed:
+  `.claude/agents/` had not loaded (so `rust-impl` could not be selected, leaving
+  Law 2 advisory rather than enforced by tool allowlist), and built-in worktree
+  isolation reported "not in a git repository". Worktrees were created with
+  `scripts/agent-worktree.sh` instead, which keeps Laws 1, 3 and 4 fully enforced
+  — the agents really are in linked worktrees on `agent/*` branches. A Claude Code
+  restart restores both features for later waves.
