@@ -7,3 +7,6 @@
 /data/
 /checkpoints/
 /artifacts/
+
+# Human review approvals — local-only state, not committed.
+agent-orchestrator/approvals/

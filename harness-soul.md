@@ -137,8 +137,10 @@ independent check on the result.
 
 **Human review gate.** Any merge that adds more than 20 lines of new code
 (measured by `git diff --stat` against master) requires the human to review the
-diff before the orchestrator merges. The orchestrator presents the diff, waits
-for explicit approval, and only then runs `git merge`. Diffs of 20 lines or
+diff before the orchestrator merges. The human uses `rv <lane>` to review and
+`ra <lane>` to approve. The orchestrator checks for
+`agent-orchestrator/approvals/<lane>` before merging — if the file exists and
+its SHA matches the branch HEAD, the lane is cleared. Diffs of 20 lines or
 fewer may merge after the `rust-reviewer` passes, without blocking on the human.
 This keeps the human in the loop on substantive changes without making every
 trivial fix a bottleneck.

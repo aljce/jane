@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# ra — review-approve: mark a lane as human-approved for merge.
+#
+# Usage:
+#   ra dataset       # approve the current commit on agent/dataset
+#   ra dataset -r    # revoke approval
+#
+# Writes an approval file to agent-orchestrator/approvals/<lane> containing
+# the approved commit SHA. The orchestrator checks this before merging.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+APPROVALS_DIR="agent-orchestrator/approvals"
+mkdir -p "$APPROVALS_DIR"
+
+die() { echo "error: $*" >&2; exit 1; }
+
+usage() {
+  cat <<'HELP'
+ra — approve a lane for merge
+
+Usage:
+  ra <lane>       approve the current commit on agent/<lane>
+  ra <lane> -r    revoke a previous approval
+
+The orchestrator checks for an approval file before merging any lane
+with more than 20 new lines. Use `rv <lane>` to review first.
+
+Examples:
+  ra dataset      approve dataset lane at its current HEAD
+  ra sources -r   revoke sources approval
+HELP
+  exit 0
+}
+
+[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
+[ "${1:-}" ] || usage
+
+lane="$1"; shift
+branch="agent/$lane"
+
+git rev-parse --verify "$branch" >/dev/null 2>&1 \
+  || die "branch '$branch' does not exist"
+
+# Revoke mode.
+if [ "${1:-}" = "-r" ]; then
+  rm -f "$APPROVALS_DIR/$lane"
+  echo "revoked approval for $lane"
+  exit 0
+fi
+
+sha="$(git rev-parse "$branch")"
+stat="$(git diff --stat master.."$branch")"
+
+echo "$sha" > "$APPROVALS_DIR/$lane"
+
+echo "approved $lane at $sha"
+echo "$stat"
+echo ""
+echo "orchestrator: $lane is cleared for merge"
