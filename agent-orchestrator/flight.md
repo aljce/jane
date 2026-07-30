@@ -45,6 +45,12 @@ Keep the column order.
 | `dataset` | merged | — | opus | mmap `TokenDataset`, window arithmetic, shifted input/target, `LmBatcher` → `[batch, seq]` Int tensors | — |
 | `sources` | merged | — | opus | `DataSource` trait, `curl` raw-text fetch with atomic rename + checksum, HF import with `use_python_venv(false)` | — |
 | `train-config` | merged | — | sonnet | `TrainConfig`, `grad_accum_steps` derivation, warmup→cosine `lr_at`, validation | — |
+<!-- Phase 2 -->
+| `rmsnorm` | queued | — | — | Hand-rolled RMSNorm from tensor ops | — |
+| `rope` | queued | — | — | Rotary positional encoding, precomputed cos/sin cache | — |
+| `ffn` | queued | — | — | SwiGLU feed-forward (gate/up/down projections) | — |
+| `attention` | queued | — | — | Causal multi-head self-attention with RoPE | Wave 1 must merge first |
+| `model` | queued | — | — | Block (pre-norm + residuals) + Jane (embed → blocks → head) | Wave 1 must merge first |
 <!-- lanes:end -->
 
 Model choice is per-lane on purpose: raise it for a lane whose difficulty turns

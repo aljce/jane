@@ -1,9 +1,23 @@
-//! Model configuration for `jane`.
+//! Model configuration and transformer modules for `jane`.
 //!
-//! Phase 0/1 scope: configuration only. The transformer modules (RoPE, RMSNorm,
-//! causal attention, SwiGLU, blocks) arrive in Phase 2 alongside the Burn
-//! dependency.
+//! Phase 1: configuration only. Phase 2: the actual model.
+//!
+//! Module dependency graph:
+//! ```text
+//! rmsnorm  rope  ffn       ← standalone (Wave 1)
+//!     \     |    /
+//!      attention            ← uses rope (Wave 2)
+//!          |
+//!    model (Block, Jane)    ← uses all (Wave 2)
+//! ```
 
 pub mod config;
 
+pub mod attention;
+pub mod ffn;
+pub mod model;
+pub mod rmsnorm;
+pub mod rope;
+
 pub use config::{ConfigError, JaneConfig, Preset};
+pub use model::Jane;

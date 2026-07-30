@@ -6,10 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 description = "Model configuration; the transformer modules land here in Phase 2"
 
-# Deliberately NO burn dependency yet. Phase 0/1 only needs config, and keeping
-# Burn out means this crate compiles in seconds instead of minutes — which
-# matters a lot for the iteration loop. Burn arrives in Phase 2 with the modules.
 [dependencies]
+burn = { workspace = true, features = ["std", "ndarray"] }
 serde = { workspace = true }
 toml = { workspace = true }
 thiserror = { workspace = true }

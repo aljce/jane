@@ -30,3 +30,13 @@ agent/sources = crates/jane-data/src/source.rs crates/jane-data/src/source_test.
 # Split out from agent/sources: training hyperparameters have nothing to do with
 # corpus acquisition. Lanes are cut along conceptual seams, not to balance size.
 agent/train-config = crates/jane-train/src/config.rs
+
+# --- Phase 2 agent lanes — the transformer model ----------------------------
+# Wave 1: standalone modules (no cross-module dependencies in their tests).
+agent/rmsnorm = crates/jane-model/src/rmsnorm.rs crates/jane-model/src/rmsnorm_test.rs
+agent/rope = crates/jane-model/src/rope.rs crates/jane-model/src/rope_test.rs
+agent/ffn = crates/jane-model/src/ffn.rs crates/jane-model/src/ffn_test.rs
+
+# Wave 2: depends on Wave 1 being merged (attention uses rope; model uses all).
+agent/attention = crates/jane-model/src/attention.rs crates/jane-model/src/attention_test.rs
+agent/model = crates/jane-model/src/model.rs crates/jane-model/src/model_test.rs
