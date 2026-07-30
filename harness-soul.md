@@ -135,6 +135,14 @@ fix. Two agents editing the same lane is exactly the collision this harness
 exists to prevent — and a reviewer that patches as it reads stops being an
 independent check on the result.
 
+**Human review gate.** Any merge that adds more than 20 lines of new code
+(measured by `git diff --stat` against master) requires the human to review the
+diff before the orchestrator merges. The orchestrator presents the diff, waits
+for explicit approval, and only then runs `git merge`. Diffs of 20 lines or
+fewer may merge after the `rust-reviewer` passes, without blocking on the human.
+This keeps the human in the loop on substantive changes without making every
+trivial fix a bottleneck.
+
 Findings come back to the orchestrator, who either sends them to the implementing
 agent via `SendMessage` (its context is still warm — much cheaper than a cold
 respawn) or fixes them directly if they touch orchestrator-owned surface.
